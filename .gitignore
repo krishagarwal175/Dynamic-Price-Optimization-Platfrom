@@ -1,0 +1,48 @@
+# ---------- Python / backend ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# ---------- Node / frontend ----------
+node_modules/
+.pnpm-store/
+frontend/dist/
+frontend/build/
+*.local
+
+# ---------- Environment & secrets ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ---------- Editors / OS ----------
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---------- Data (keep the folder, ignore heavy/local artifacts) ----------
+data/*
+!data/.gitkeep
+!data/README.md
+*.sqlite3
+*.db
+
+# ---------- Sibling engineering vault (never tracked) ----------
+../vault4/
+vault4/

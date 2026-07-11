@@ -3,11 +3,12 @@
 FastAPI service that exposes the pricing, simulation, and catalog capabilities of the
 platform. This document defines the layered structure that implementation follows.
 
-> **Status (through M7):** infrastructure + data model + ingestion + financial analytics.
+> **Status (through M8):** infrastructure + data model + ingestion + analytics engines.
 > On top of the persistence foundation, core data model, and ingestion pipeline, the
-> service now has a **financial-metrics engine** (`app/pricing/finance/`) — a pure,
-> deterministic analytics engine exposed via read-only endpoints. **No** pricing,
-> elasticity, forecasting, optimization, scenario, or reporting logic yet.
+> service has two pure, deterministic analytics engines — a **financial-metrics engine**
+> (`app/pricing/finance/`) and a **price-elasticity engine** (`app/pricing/elasticity/`) —
+> exposed via read-only endpoints. **No** pricing recommendations, forecasting,
+> optimization, scenario, or reporting logic yet.
 
 ## Quick start
 
@@ -26,6 +27,8 @@ cp .env.example .env                                 # optional; sane defaults o
   · `POST /api/v1/datasets/{id}/import`
 - Financial analytics (read-only): `GET /api/v1/analytics/financial` ·
   `GET /api/v1/analytics/products/{id}` · `GET /api/v1/analytics/categories/{id}`
+- Elasticity analytics (read-only): `GET /api/v1/analytics/elasticity` ·
+  `GET /api/v1/analytics/products/{id}/elasticity`
 - Swagger UI: `/docs` · ReDoc: `/redoc` · OpenAPI schema: `/openapi.json`
 
 ## Database & migrations

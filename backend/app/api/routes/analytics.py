@@ -18,6 +18,11 @@ from app.schemas.analytics import (
     FinancialMetricsSchema,
     ProductFinancialsResponse,
 )
+from app.schemas.elasticity import (
+    DatasetElasticityResponse,
+    ElasticityAnalysisSchema,
+    ProductElasticityResponse,
+)
 from app.schemas.envelope import SuccessResponse
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -83,5 +88,42 @@ def category_financials(
             category_id=category.id,
             name=category.name,
             metrics=FinancialMetricsSchema.model_validate(metrics),
+        )
+    )
+
+
+@router.get(
+    "/elasticity",
+    response_model=SuccessResponse[DatasetElasticityResponse],
+    summary="Price elasticity of demand for the whole dataset",
+)
+def dataset_elasticity(
+    service: AnalyticsServiceDep,
+) -> SuccessResponse[DatasetElasticityResponse]:
+    analysis = service.dataset_elasticity()
+    return SuccessResponse(
+        data=DatasetElasticityResponse(
+            scope="dataset",
+            analysis=ElasticityAnalysisSchema.model_validate(analysis),
+        )
+    )
+
+
+@router.get(
+    "/products/{product_id}/elasticity",
+    response_model=SuccessResponse[ProductElasticityResponse],
+    summary="Price elasticity of demand for a product",
+)
+def product_elasticity(
+    product_id: int,
+    service: AnalyticsServiceDep,
+) -> SuccessResponse[ProductElasticityResponse]:
+    product, analysis = service.product_elasticity(product_id)
+    return SuccessResponse(
+        data=ProductElasticityResponse(
+            product_id=product.id,
+            sku=product.sku,
+            name=product.name,
+            analysis=ElasticityAnalysisSchema.model_validate(analysis),
         )
     )

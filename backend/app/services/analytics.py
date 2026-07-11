@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import NotFoundError, ValidationError
 from app.models.category import Category
 from app.models.product import Product
+from app.pricing.elasticity import ElasticityAnalysis, Observation, analyze_elasticity
 from app.pricing.errors import AnalyticsError, InsufficientDataError
 from app.pricing.finance import FinancialMetrics, SaleLine, compute_financials
 from app.repositories.category import CategoryRepository
@@ -64,3 +65,36 @@ class AnalyticsService:
             raise ValidationError(str(exc)) from exc
         except AnalyticsError as exc:
             raise ValidationError(str(exc)) from exc
+
+    # --------------------------------------------------------------- elasticity
+    def dataset_elasticity(self) -> ElasticityAnalysis:
+        rows = self._sales.unit_economics()
+        return self._analyze(rows, _weighted_unit_cost(rows))
+
+    def product_elasticity(self, product_id: int) -> tuple[Product, ElasticityAnalysis]:
+        product = self._products.get(product_id)
+        if product is None:
+            raise NotFoundError(f"Product {product_id} not found.")
+        rows = self._sales.unit_economics(product_id=product_id)
+        return product, self._analyze(rows, float(product.unit_cost))
+
+    def _analyze(
+        self, rows: list[tuple[int, Decimal, Decimal]], unit_cost: float | None
+    ) -> ElasticityAnalysis:
+        observations = [
+            Observation(price=float(unit_price), quantity=float(quantity))
+            for quantity, unit_price, _unit_cost in rows
+        ]
+        try:
+            return analyze_elasticity(observations, unit_cost=unit_cost)
+        except AnalyticsError as exc:
+            raise ValidationError(str(exc)) from exc
+
+
+def _weighted_unit_cost(rows: list[tuple[int, Decimal, Decimal]]) -> float | None:
+    """COGS-weighted average unit cost across rows, for the dataset-scope profit curve."""
+    total_units = sum(quantity for quantity, _price, _cost in rows)
+    if total_units <= 0:
+        return None
+    total_cost = sum(cost * quantity for quantity, _price, cost in rows)
+    return float(Decimal(total_cost) / Decimal(total_units))

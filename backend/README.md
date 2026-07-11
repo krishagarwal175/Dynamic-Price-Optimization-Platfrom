@@ -23,16 +23,25 @@ cp .env.example .env                                 # optional; sane defaults o
 - Health: `GET /api/v1/health`
 - Swagger UI: `/docs` · ReDoc: `/redoc` · OpenAPI schema: `/openapi.json`
 
-## Quality & tests
+## Quality & tests — local validation
+
+Run these **in this order**. This is the *same* sequence, in the same order, that the CI
+pipeline enforces on every push and pull request
+([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) — CI is simply this sequence
+on a clean clone. If it passes here, it passes in CI.
 
 ```bash
-./.venv/Scripts/ruff check .        # lint + import sorting
-./.venv/Scripts/black --check .     # formatting
-./.venv/Scripts/mypy app            # strict type checking
-./.venv/Scripts/python -m pytest    # unit + integration tests
+ruff check .        # 1. lint + import order   (fail on any lint error)
+black --check .     # 2. formatting            (check only; never auto-format in CI)
+mypy app            # 3. strict type checking
+pytest              # 4. unit + integration test suite
 ```
 
-All four gates must be green before a milestone is considered done.
+On Windows, prefix each with the venv path, e.g. `./.venv/Scripts/ruff check .`.
+
+All four gates must be green before a milestone is considered done (see the project
+Definition of Done). Tool configuration is centralized in
+[`pyproject.toml`](pyproject.toml) so local and CI runs are identical.
 
 ## Layered structure (`app/`)
 

@@ -67,3 +67,9 @@ markers = [
     "unit: fast isolated tests with no I/O",
     "integration: tests that exercise the app through HTTP",
 ]
+filterwarnings = [
+    # Keep CI logs concise: silence a known deprecation from Starlette's TestClient
+    # (it drives httpx internally). Message-only match — the warning's category is
+    # StarletteDeprecationWarning, not the stdlib DeprecationWarning. Not our code.
+    "ignore:Using `httpx`",
+]

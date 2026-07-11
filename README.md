@@ -1,5 +1,7 @@
 # Dynamic Pricing Optimization Platform
 
+[![CI](https://github.com/krishagarwal175/Dynamic-Price-Optimization-Platfrom/actions/workflows/ci.yml/badge.svg)](https://github.com/krishagarwal175/Dynamic-Price-Optimization-Platfrom/actions/workflows/ci.yml)
+
 A platform for data-driven price optimization: it models demand elasticity, runs
 pricing scenarios, and recommends revenue- or margin-optimal prices across a product
 catalog.

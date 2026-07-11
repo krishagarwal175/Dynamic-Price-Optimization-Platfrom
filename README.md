@@ -4,9 +4,11 @@ A platform for data-driven price optimization: it models demand elasticity, runs
 pricing scenarios, and recommends revenue- or margin-optimal prices across a product
 catalog.
 
-> **Status:** Foundation established. Application implementation has not yet begun.
-> This repository currently contains the engineering scaffold, standards, and
-> documentation contract that all future work will follow.
+> **Status:** Architecture frozen. Application implementation has not yet begun.
+> This repository contains the engineering scaffold, the frozen architecture blueprint
+> ([`docs/architecture/overview.md`](docs/architecture/overview.md) and
+> [`docs/adr/`](docs/adr/)), and the documentation contract that all future work follows.
+> Structural changes to the architecture require a new ADR.
 
 ---
 

@@ -20,6 +20,13 @@ from app.pricing.errors import AnalyticsError, InsufficientDataError
 from app.pricing.finance import FinancialMetrics, SaleLine, compute_financials
 from app.pricing.forecasting import ForecastResult, forecast_demand
 from app.pricing.forecasting import Observation as ForecastObservation
+from app.pricing.optimization import (
+    Objective,
+    OptimizationConstraints,
+    OptimizationInput,
+    OptimizationResult,
+    optimize,
+)
 from app.repositories.category import CategoryRepository
 from app.repositories.historical_sale import HistoricalSaleRepository
 from app.repositories.product import ProductRepository
@@ -116,6 +123,81 @@ class AnalyticsService:
         except AnalyticsError as exc:
             raise ValidationError(str(exc)) from exc
 
+    # --------------------------------------------------------------- optimization
+    def product_optimization(
+        self,
+        product_id: int,
+        *,
+        objective: Objective,
+        fixed_cost: Decimal = _ZERO,
+        constraints: OptimizationConstraints | None = None,
+    ) -> tuple[Product, OptimizationResult]:
+        product, elasticity_analysis = self.product_elasticity(product_id)
+        _, forecast_result = self.product_forecast(product_id)
+        reference_demand = forecast_result.forecast[0].predicted
+        result = self._optimize(
+            current_price=float(product.base_price),
+            variable_cost=float(product.unit_cost),
+            reference_demand=reference_demand,
+            elasticity=elasticity_analysis.elasticity_coefficient,
+            objective=objective,
+            fixed_cost=fixed_cost,
+            constraints=constraints,
+        )
+        return product, result
+
+    def dataset_optimization(
+        self,
+        *,
+        objective: Objective,
+        fixed_cost: Decimal = _ZERO,
+        constraints: OptimizationConstraints | None = None,
+    ) -> OptimizationResult:
+        # Aggregate the dataset as a single representative product (average selling price,
+        # weighted unit cost, aggregate elasticity + forecast). This is a single-curve
+        # optimization, not joint multi-product optimization.
+        elasticity_analysis = self.dataset_elasticity()
+        forecast_result = self.dataset_forecast()
+        rows = self._sales.unit_economics()
+        current_price = _average_selling_price(rows)
+        variable_cost = _weighted_unit_cost(rows) or 0.0
+        if current_price is None:
+            raise ValidationError("No sales data available to optimize.")
+        return self._optimize(
+            current_price=current_price,
+            variable_cost=variable_cost,
+            reference_demand=forecast_result.forecast[0].predicted,
+            elasticity=elasticity_analysis.elasticity_coefficient,
+            objective=objective,
+            fixed_cost=fixed_cost,
+            constraints=constraints,
+        )
+
+    def _optimize(
+        self,
+        *,
+        current_price: float,
+        variable_cost: float,
+        reference_demand: float,
+        elasticity: float,
+        objective: Objective,
+        fixed_cost: Decimal,
+        constraints: OptimizationConstraints | None,
+    ) -> OptimizationResult:
+        opt_input = OptimizationInput(
+            current_price=current_price,
+            variable_cost=variable_cost,
+            reference_demand=reference_demand,
+            elasticity=elasticity,
+            fixed_cost=float(fixed_cost),
+            objective=objective,
+            constraints=constraints or OptimizationConstraints(),
+        )
+        try:
+            return optimize(opt_input)
+        except AnalyticsError as exc:
+            raise ValidationError(str(exc)) from exc
+
 
 def _weighted_unit_cost(rows: list[tuple[int, Decimal, Decimal]]) -> float | None:
     """COGS-weighted average unit cost across rows, for the dataset-scope profit curve."""
@@ -124,3 +206,12 @@ def _weighted_unit_cost(rows: list[tuple[int, Decimal, Decimal]]) -> float | Non
         return None
     total_cost = sum(cost * quantity for quantity, _price, cost in rows)
     return float(Decimal(total_cost) / Decimal(total_units))
+
+
+def _average_selling_price(rows: list[tuple[int, Decimal, Decimal]]) -> float | None:
+    """Volume-weighted average selling price (ASP) = revenue / units."""
+    total_units = sum(quantity for quantity, _price, _cost in rows)
+    if total_units <= 0:
+        return None
+    total_revenue = sum(price * quantity for quantity, price, _cost in rows)
+    return float(Decimal(total_revenue) / Decimal(total_units))

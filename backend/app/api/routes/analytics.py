@@ -1,7 +1,7 @@
-"""Read-only financial-analytics endpoints.
+"""Read-only analytics & optimization endpoints.
 
-Exposes deterministic financial metrics only — no pricing recommendations, elasticity,
-forecasting, or optimization.
+Exposes deterministic financial metrics, elasticity, forecasting, and a pricing-
+optimization *recommendation* (advisory only). No endpoint modifies persisted data.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from app.api.deps import AnalyticsServiceDep
+from app.pricing.optimization import Objective, OptimizationConstraints
 from app.schemas.analytics import (
     CategoryFinancialsResponse,
     DatasetFinancialsResponse,
@@ -29,6 +30,11 @@ from app.schemas.forecast import (
     ForecastResultSchema,
     ProductForecastResponse,
 )
+from app.schemas.optimization import (
+    DatasetOptimizationResponse,
+    OptimizationResultSchema,
+    ProductOptimizationResponse,
+)
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -41,6 +47,31 @@ Horizon = Annotated[
     int,
     Query(ge=1, le=60, description="Number of future periods to forecast."),
 ]
+
+ObjectiveParam = Annotated[
+    Objective,
+    Query(description="Objective to maximize."),
+]
+
+
+def _constraints(
+    min_price: float | None,
+    max_price: float | None,
+    min_margin_pct: float | None,
+    min_profit: float | None,
+    min_demand: float | None,
+    max_increase_pct: float | None,
+    max_decrease_pct: float | None,
+) -> OptimizationConstraints:
+    return OptimizationConstraints(
+        min_price=min_price,
+        max_price=max_price,
+        min_margin_pct=min_margin_pct,
+        min_profit=min_profit,
+        min_demand=min_demand,
+        max_increase_pct=max_increase_pct,
+        max_decrease_pct=max_decrease_pct,
+    )
 
 
 @router.get(
@@ -174,5 +205,85 @@ def product_forecast(
             sku=product.sku,
             name=product.name,
             forecast=ForecastResultSchema.model_validate(result),
+        )
+    )
+
+
+@router.get(
+    "/optimization",
+    response_model=SuccessResponse[DatasetOptimizationResponse],
+    summary="Recommended price for the aggregate dataset (advisory; read-only)",
+)
+def dataset_optimization(
+    service: AnalyticsServiceDep,
+    objective: ObjectiveParam = Objective.MAXIMIZE_GROSS_PROFIT,
+    fixed_cost: FixedCost = Decimal("0"),
+    min_price: float | None = None,
+    max_price: float | None = None,
+    min_margin_pct: float | None = None,
+    min_profit: float | None = None,
+    min_demand: float | None = None,
+    max_increase_pct: float | None = None,
+    max_decrease_pct: float | None = None,
+) -> SuccessResponse[DatasetOptimizationResponse]:
+    result = service.dataset_optimization(
+        objective=objective,
+        fixed_cost=fixed_cost,
+        constraints=_constraints(
+            min_price,
+            max_price,
+            min_margin_pct,
+            min_profit,
+            min_demand,
+            max_increase_pct,
+            max_decrease_pct,
+        ),
+    )
+    return SuccessResponse(
+        data=DatasetOptimizationResponse(
+            scope="dataset",
+            optimization=OptimizationResultSchema.model_validate(result),
+        )
+    )
+
+
+@router.get(
+    "/products/{product_id}/optimization",
+    response_model=SuccessResponse[ProductOptimizationResponse],
+    summary="Recommended price for a product (advisory; read-only)",
+)
+def product_optimization(
+    product_id: int,
+    service: AnalyticsServiceDep,
+    objective: ObjectiveParam = Objective.MAXIMIZE_GROSS_PROFIT,
+    fixed_cost: FixedCost = Decimal("0"),
+    min_price: float | None = None,
+    max_price: float | None = None,
+    min_margin_pct: float | None = None,
+    min_profit: float | None = None,
+    min_demand: float | None = None,
+    max_increase_pct: float | None = None,
+    max_decrease_pct: float | None = None,
+) -> SuccessResponse[ProductOptimizationResponse]:
+    product, result = service.product_optimization(
+        product_id,
+        objective=objective,
+        fixed_cost=fixed_cost,
+        constraints=_constraints(
+            min_price,
+            max_price,
+            min_margin_pct,
+            min_profit,
+            min_demand,
+            max_increase_pct,
+            max_decrease_pct,
+        ),
+    )
+    return SuccessResponse(
+        data=ProductOptimizationResponse(
+            product_id=product.id,
+            sku=product.sku,
+            name=product.name,
+            optimization=OptimizationResultSchema.model_validate(result),
         )
     )

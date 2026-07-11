@@ -27,6 +27,13 @@ from app.pricing.optimization import (
     OptimizationResult,
     optimize,
 )
+from app.pricing.simulation import (
+    ScenarioSpec,
+    SimulationInput,
+    SimulationResult,
+    default_scenarios,
+    simulate,
+)
 from app.repositories.category import CategoryRepository
 from app.repositories.historical_sale import HistoricalSaleRepository
 from app.repositories.product import ProductRepository
@@ -195,6 +202,90 @@ class AnalyticsService:
         )
         try:
             return optimize(opt_input)
+        except AnalyticsError as exc:
+            raise ValidationError(str(exc)) from exc
+
+    # --------------------------------------------------------------- simulation
+    def product_simulation(
+        self,
+        product_id: int,
+        *,
+        objective: Objective,
+        fixed_cost: Decimal = _ZERO,
+        scenarios: list[ScenarioSpec] | None = None,
+    ) -> tuple[Product, SimulationResult]:
+        product, elasticity_analysis = self.product_elasticity(product_id)
+        _, forecast_result = self.product_forecast(product_id)
+        _, optimization = self.product_optimization(product_id, objective=objective)
+        result = self._simulate(
+            current_price=float(product.base_price),
+            variable_cost=float(product.unit_cost),
+            baseline_demand=forecast_result.forecast[0].predicted,
+            elasticity=elasticity_analysis.elasticity_coefficient,
+            recommended_price=optimization.recommended_price,
+            constraint_summary=", ".join(optimization.active_constraints) or None,
+            objective=objective,
+            fixed_cost=fixed_cost,
+            scenarios=scenarios,
+        )
+        return product, result
+
+    def dataset_simulation(
+        self,
+        *,
+        objective: Objective,
+        fixed_cost: Decimal = _ZERO,
+        scenarios: list[ScenarioSpec] | None = None,
+    ) -> SimulationResult:
+        elasticity_analysis = self.dataset_elasticity()
+        forecast_result = self.dataset_forecast()
+        optimization = self.dataset_optimization(objective=objective)
+        rows = self._sales.unit_economics()
+        current_price = _average_selling_price(rows)
+        if current_price is None:
+            raise ValidationError("No sales data available to simulate.")
+        return self._simulate(
+            current_price=current_price,
+            variable_cost=_weighted_unit_cost(rows) or 0.0,
+            baseline_demand=forecast_result.forecast[0].predicted,
+            elasticity=elasticity_analysis.elasticity_coefficient,
+            recommended_price=optimization.recommended_price,
+            constraint_summary=", ".join(optimization.active_constraints) or None,
+            objective=objective,
+            fixed_cost=fixed_cost,
+            scenarios=scenarios,
+        )
+
+    def _simulate(
+        self,
+        *,
+        current_price: float,
+        variable_cost: float,
+        baseline_demand: float,
+        elasticity: float,
+        recommended_price: float | None,
+        constraint_summary: str | None,
+        objective: Objective,
+        fixed_cost: Decimal,
+        scenarios: list[ScenarioSpec] | None,
+    ) -> SimulationResult:
+        sim_input = SimulationInput(
+            current_price=current_price,
+            baseline_demand=baseline_demand,
+            elasticity=elasticity,
+            unit_cost=variable_cost,
+            fixed_cost=float(fixed_cost),
+            objective=objective,
+            recommended_price=recommended_price,
+            constraint_summary=constraint_summary,
+            scenarios=(
+                tuple(scenarios)
+                if scenarios is not None
+                else default_scenarios(recommended_available=recommended_price is not None)
+            ),
+        )
+        try:
+            return simulate(sim_input)
         except AnalyticsError as exc:
             raise ValidationError(str(exc)) from exc
 

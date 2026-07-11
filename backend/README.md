@@ -3,13 +3,14 @@
 FastAPI service that exposes the pricing, simulation, and catalog capabilities of the
 platform. This document defines the layered structure that implementation follows.
 
-> **Status (through M10):** infrastructure + data model + ingestion + four pricing engines.
+> **Status (through M11):** infrastructure + data model + ingestion + five pricing engines.
 > On top of the persistence foundation, core data model, and ingestion pipeline, the
-> service has four pure, deterministic engines — **financial metrics**
+> service has five pure, deterministic engines — **financial metrics**
 > (`app/pricing/finance/`), **price elasticity** (`app/pricing/elasticity/`), **demand
-> forecasting** (`app/pricing/forecasting/`), and the **pricing optimization** decision
-> engine (`app/pricing/optimization/`) — all exposed via read-only endpoints. Optimization
-> is advisory; **no** scenario simulation, reporting, or automatic price updates yet.
+> forecasting** (`app/pricing/forecasting/`), the **pricing-optimization** decision engine
+> (`app/pricing/optimization/`), and the **scenario-simulation** what-if engine
+> (`app/pricing/simulation/`) — all read-only. **No** reporting, dashboards, or automatic
+> price updates yet.
 
 ## Quick start
 
@@ -34,6 +35,8 @@ cp .env.example .env                                 # optional; sane defaults o
   `GET /api/v1/analytics/products/{id}/forecast`
 - Pricing optimization (read-only, advisory): `GET /api/v1/analytics/optimization` ·
   `GET /api/v1/analytics/products/{id}/optimization` (with objective + constraint params)
+- Scenario simulation (read-only, what-if): `GET /api/v1/analytics/simulation` ·
+  `GET /api/v1/analytics/products/{id}/simulation` (scenario/price/percentage params)
 - Swagger UI: `/docs` · ReDoc: `/redoc` · OpenAPI schema: `/openapi.json`
 
 ## Database & migrations

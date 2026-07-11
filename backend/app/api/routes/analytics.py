@@ -13,6 +13,7 @@ from fastapi import APIRouter, Query
 
 from app.api.deps import AnalyticsServiceDep
 from app.pricing.optimization import Objective, OptimizationConstraints
+from app.pricing.simulation import ScenarioSpec, ScenarioType
 from app.schemas.analytics import (
     CategoryFinancialsResponse,
     DatasetFinancialsResponse,
@@ -34,6 +35,11 @@ from app.schemas.optimization import (
     DatasetOptimizationResponse,
     OptimizationResultSchema,
     ProductOptimizationResponse,
+)
+from app.schemas.simulation import (
+    DatasetSimulationResponse,
+    ProductSimulationResponse,
+    SimulationResultSchema,
 )
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -285,5 +291,91 @@ def product_optimization(
             sku=product.sku,
             name=product.name,
             optimization=OptimizationResultSchema.model_validate(result),
+        )
+    )
+
+
+ScenarioParam = Annotated[
+    ScenarioType | None,
+    Query(description="Evaluate a single named scenario (plus baseline & recommended)."),
+]
+
+
+def _simulation_scenarios(
+    scenario: ScenarioType | None,
+    price: float | None,
+    percentage_change: float | None,
+) -> list[ScenarioSpec] | None:
+    """Build the scenario list from query params, or ``None`` for the default set."""
+    if scenario is None:
+        return None
+    base = [
+        ScenarioSpec(ScenarioType.BASELINE, label="Baseline"),
+        ScenarioSpec(ScenarioType.RECOMMENDED, label="Recommended"),
+    ]
+    if scenario is ScenarioType.BASELINE or scenario is ScenarioType.RECOMMENDED:
+        return base
+    if scenario is ScenarioType.FIXED_PRICE:
+        label = f"${price:g}" if price is not None else "Fixed price"
+        base.append(ScenarioSpec(ScenarioType.FIXED_PRICE, label=label, price=price))
+    else:  # PERCENTAGE_INCREASE / PERCENTAGE_DECREASE
+        sign = "+" if scenario is ScenarioType.PERCENTAGE_INCREASE else "-"
+        label = f"{sign}{percentage_change:.0%}" if percentage_change is not None else "Custom %"
+        base.append(ScenarioSpec(scenario, label=label, percentage=percentage_change))
+    return base
+
+
+@router.get(
+    "/simulation",
+    response_model=SuccessResponse[DatasetSimulationResponse],
+    summary="What-if scenario simulation for the aggregate dataset (read-only)",
+)
+def dataset_simulation(
+    service: AnalyticsServiceDep,
+    objective: ObjectiveParam = Objective.MAXIMIZE_GROSS_PROFIT,
+    fixed_cost: FixedCost = Decimal("0"),
+    scenario: ScenarioParam = None,
+    price: float | None = None,
+    percentage_change: float | None = None,
+) -> SuccessResponse[DatasetSimulationResponse]:
+    result = service.dataset_simulation(
+        objective=objective,
+        fixed_cost=fixed_cost,
+        scenarios=_simulation_scenarios(scenario, price, percentage_change),
+    )
+    return SuccessResponse(
+        data=DatasetSimulationResponse(
+            scope="dataset",
+            simulation=SimulationResultSchema.model_validate(result),
+        )
+    )
+
+
+@router.get(
+    "/products/{product_id}/simulation",
+    response_model=SuccessResponse[ProductSimulationResponse],
+    summary="What-if scenario simulation for a product (read-only)",
+)
+def product_simulation(
+    product_id: int,
+    service: AnalyticsServiceDep,
+    objective: ObjectiveParam = Objective.MAXIMIZE_GROSS_PROFIT,
+    fixed_cost: FixedCost = Decimal("0"),
+    scenario: ScenarioParam = None,
+    price: float | None = None,
+    percentage_change: float | None = None,
+) -> SuccessResponse[ProductSimulationResponse]:
+    product, result = service.product_simulation(
+        product_id,
+        objective=objective,
+        fixed_cost=fixed_cost,
+        scenarios=_simulation_scenarios(scenario, price, percentage_change),
+    )
+    return SuccessResponse(
+        data=ProductSimulationResponse(
+            product_id=product.id,
+            sku=product.sku,
+            name=product.name,
+            simulation=SimulationResultSchema.model_validate(result),
         )
     )

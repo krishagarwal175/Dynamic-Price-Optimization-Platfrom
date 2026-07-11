@@ -24,12 +24,22 @@ from app.schemas.elasticity import (
     ProductElasticityResponse,
 )
 from app.schemas.envelope import SuccessResponse
+from app.schemas.forecast import (
+    DatasetForecastResponse,
+    ForecastResultSchema,
+    ProductForecastResponse,
+)
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 FixedCost = Annotated[
     Decimal,
     Query(ge=0, description="Optional total fixed cost used for net profit and break-even."),
+]
+
+Horizon = Annotated[
+    int,
+    Query(ge=1, le=60, description="Number of future periods to forecast."),
 ]
 
 
@@ -125,5 +135,44 @@ def product_elasticity(
             sku=product.sku,
             name=product.name,
             analysis=ElasticityAnalysisSchema.model_validate(analysis),
+        )
+    )
+
+
+@router.get(
+    "/forecast",
+    response_model=SuccessResponse[DatasetForecastResponse],
+    summary="Demand forecast for the whole dataset",
+)
+def dataset_forecast(
+    service: AnalyticsServiceDep,
+    horizon: Horizon = 4,
+) -> SuccessResponse[DatasetForecastResponse]:
+    result = service.dataset_forecast(horizon=horizon)
+    return SuccessResponse(
+        data=DatasetForecastResponse(
+            scope="dataset",
+            forecast=ForecastResultSchema.model_validate(result),
+        )
+    )
+
+
+@router.get(
+    "/products/{product_id}/forecast",
+    response_model=SuccessResponse[ProductForecastResponse],
+    summary="Demand forecast for a product",
+)
+def product_forecast(
+    product_id: int,
+    service: AnalyticsServiceDep,
+    horizon: Horizon = 4,
+) -> SuccessResponse[ProductForecastResponse]:
+    product, result = service.product_forecast(product_id, horizon=horizon)
+    return SuccessResponse(
+        data=ProductForecastResponse(
+            product_id=product.id,
+            sku=product.sku,
+            name=product.name,
+            forecast=ForecastResultSchema.model_validate(result),
         )
     )

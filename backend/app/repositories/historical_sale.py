@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -45,3 +46,18 @@ class HistoricalSaleRepository(BaseRepository[HistoricalSale]):
         if category_id is not None:
             stmt = stmt.where(Product.category_id == category_id)
         return [(int(q), up, uc) for q, up, uc in self._session.execute(stmt).all()]
+
+    def demand_by_period(self, *, product_id: int | None = None) -> list[tuple[date, int]]:
+        """Return ``(sale_date, quantity)`` rows ordered by date, for demand forecasting.
+
+        Multiple sales on the same date are left as separate rows; the forecasting engine
+        aggregates duplicate periods.
+        """
+        stmt = select(HistoricalSale.sale_date, HistoricalSale.quantity).order_by(
+            HistoricalSale.sale_date
+        )
+        if product_id is not None:
+            stmt = stmt.where(HistoricalSale.product_id == product_id)
+        return [
+            (sale_date, int(quantity)) for sale_date, quantity in self._session.execute(stmt).all()
+        ]

@@ -7,6 +7,7 @@ analytics domain errors onto API errors. It contains no financial formulas itsel
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -17,6 +18,8 @@ from app.models.product import Product
 from app.pricing.elasticity import ElasticityAnalysis, Observation, analyze_elasticity
 from app.pricing.errors import AnalyticsError, InsufficientDataError
 from app.pricing.finance import FinancialMetrics, SaleLine, compute_financials
+from app.pricing.forecasting import ForecastResult, forecast_demand
+from app.pricing.forecasting import Observation as ForecastObservation
 from app.repositories.category import CategoryRepository
 from app.repositories.historical_sale import HistoricalSaleRepository
 from app.repositories.product import ProductRepository
@@ -87,6 +90,29 @@ class AnalyticsService:
         ]
         try:
             return analyze_elasticity(observations, unit_cost=unit_cost)
+        except AnalyticsError as exc:
+            raise ValidationError(str(exc)) from exc
+
+    # --------------------------------------------------------------- forecasting
+    def dataset_forecast(self, *, horizon: int = 4) -> ForecastResult:
+        rows = self._sales.demand_by_period()
+        return self._forecast(rows, horizon)
+
+    def product_forecast(
+        self, product_id: int, *, horizon: int = 4
+    ) -> tuple[Product, ForecastResult]:
+        product = self._products.get(product_id)
+        if product is None:
+            raise NotFoundError(f"Product {product_id} not found.")
+        rows = self._sales.demand_by_period(product_id=product_id)
+        return product, self._forecast(rows, horizon)
+
+    def _forecast(self, rows: list[tuple[date, int]], horizon: int) -> ForecastResult:
+        observations = [
+            ForecastObservation(period=period, demand=float(quantity)) for period, quantity in rows
+        ]
+        try:
+            return forecast_demand(observations, horizon=horizon)
         except AnalyticsError as exc:
             raise ValidationError(str(exc)) from exc
 

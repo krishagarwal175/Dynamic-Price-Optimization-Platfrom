@@ -3,10 +3,12 @@
 FastAPI service that exposes the pricing, simulation, and catalog capabilities of the
 platform. This document defines the layered structure that implementation follows.
 
-> **Status (M2 — Backend Foundation):** infrastructure only. The service boots with typed
-> configuration, structured logging, a request-correlation middleware, a global exception
-> handler + standard response/error envelope, OpenAPI docs, and a health endpoint. **No**
-> pricing, analytics, forecasting, or optimization logic exists yet (later milestones).
+> **Status (through M4):** infrastructure only. The service boots with typed configuration,
+> structured logging, a request-correlation middleware, a global exception handler +
+> standard response/error envelope, OpenAPI docs, a health endpoint, and a **persistence
+> foundation** (SQLAlchemy 2.0 engine/session, Alembic migrations, generic repository
+> base, DB utilities). **No** business entities, pricing, analytics, forecasting, or
+> optimization logic exists yet (later milestones).
 
 ## Quick start
 
@@ -22,6 +24,27 @@ cp .env.example .env                                 # optional; sane defaults o
 
 - Health: `GET /api/v1/health`
 - Swagger UI: `/docs` · ReDoc: `/redoc` · OpenAPI schema: `/openapi.json`
+
+## Database & migrations
+
+The database provider is chosen entirely by the `DATABASE_URL` setting — SQLite locally
+and in tests, PostgreSQL in deployment — with no code changes. Schema is owned **only** by
+Alembic; the application never creates tables at startup (it just verifies connectivity).
+
+```bash
+# Apply all migrations (creates ./var/dpop.db by default)
+./.venv/Scripts/python -m alembic upgrade head
+
+# Inspect / move through history
+./.venv/Scripts/python -m alembic current
+./.venv/Scripts/python -m alembic downgrade -1
+
+# Create a new migration when models change (later milestones)
+./.venv/Scripts/python -m alembic revision --autogenerate -m "add product table"
+```
+
+Model/persistence conventions (integer keys, timestamp mixins, Alembic-only schema) are
+recorded in ADR-0007.
 
 ## Quality & tests — local validation
 

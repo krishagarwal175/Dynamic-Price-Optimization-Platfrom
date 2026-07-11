@@ -43,6 +43,10 @@ data/*
 *.sqlite3
 *.db
 
+# ---------- Local runtime state (sqlite dbs, storage) ----------
+var/
+backend/var/
+
 # ---------- Sibling engineering vault (never tracked) ----------
 ../vault4/
 vault4/

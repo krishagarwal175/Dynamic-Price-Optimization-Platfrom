@@ -19,6 +19,7 @@ def settings() -> Settings:
         app_name="Test API",
         log_level="WARNING",
         cors_allowed_origins=["http://testserver"],
+        database_url="sqlite://",  # in-memory; no files, no external services
     )
 
 

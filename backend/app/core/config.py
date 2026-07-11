@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO")
     cors_allowed_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
 
+    # Persistence. A SQLAlchemy URL; the provider is swappable via configuration alone
+    # (SQLite locally / in tests, PostgreSQL in deployment). See
+    # vault4/02-Architecture/database_design.md.
+    database_url: str = Field(default="sqlite:///./var/dpop.db")
+    db_echo: bool = Field(default=False)
+
     @field_validator("log_level")
     @classmethod
     def _normalize_log_level(cls, value: str) -> str:

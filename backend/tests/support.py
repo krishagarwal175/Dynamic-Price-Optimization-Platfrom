@@ -41,3 +41,15 @@ def make_memory_engine() -> Engine:
 def make_memory_db() -> tuple[Engine, sessionmaker[Session]]:
     engine = make_memory_engine()
     return engine, create_session_factory(engine)
+
+
+def make_business_db() -> tuple[Engine, sessionmaker[Session]]:
+    """In-memory engine with the full business schema created (all registered models).
+
+    Test scaffolding only — production schema is owned by Alembic.
+    """
+    import app.models  # noqa: F401  (register all business models on Base.metadata)
+
+    engine = create_db_engine(make_memory_settings())
+    Base.metadata.create_all(engine)
+    return engine, create_session_factory(engine)

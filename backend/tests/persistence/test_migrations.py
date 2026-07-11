@@ -45,3 +45,43 @@ def test_single_head_revision() -> None:
 
     script = ScriptDirectory.from_config(_alembic_config("sqlite://"))
     assert len(script.get_heads()) == 1, "migration history must have exactly one head"
+
+
+BUSINESS_TABLES = {"category", "product", "historical_sale", "competitor", "competitor_price"}
+
+
+@pytest.mark.integration
+def test_fresh_upgrade_creates_business_schema(tmp_path: Path) -> None:
+    url = f"sqlite:///{tmp_path / 'fresh.db'}"
+    command.upgrade(_alembic_config(url), "head")
+
+    engine = create_engine(url)
+    try:
+        tables = set(inspect(engine).get_table_names())
+    finally:
+        engine.dispose()
+
+    assert BUSINESS_TABLES.issubset(tables)
+
+
+@pytest.mark.integration
+def test_migration_is_idempotent_and_reversible(tmp_path: Path) -> None:
+    url = f"sqlite:///{tmp_path / 'idem.db'}"
+    cfg = _alembic_config(url)
+
+    command.upgrade(cfg, "head")
+    command.upgrade(cfg, "head")  # running again is a no-op, must not error
+
+    engine = create_engine(url)
+    try:
+        assert BUSINESS_TABLES.issubset(set(inspect(engine).get_table_names()))
+
+        # Full down then up again recreates the schema cleanly (fresh-creation path).
+        command.downgrade(cfg, "base")
+        remaining = set(inspect(engine).get_table_names())
+        assert not (BUSINESS_TABLES & remaining)
+
+        command.upgrade(cfg, "head")
+        assert BUSINESS_TABLES.issubset(set(inspect(engine).get_table_names()))
+    finally:
+        engine.dispose()

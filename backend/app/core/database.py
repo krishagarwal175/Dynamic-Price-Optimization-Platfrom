@@ -12,7 +12,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from sqlalchemy import Engine, MetaData, create_engine, make_url, text
+from sqlalchemy import Engine, MetaData, create_engine, event, make_url, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -52,6 +52,17 @@ def _ensure_sqlite_parent_dir(url: str) -> None:
             parent.mkdir(parents=True, exist_ok=True)
 
 
+def _enable_sqlite_foreign_keys(engine: Engine) -> None:
+    """SQLite disables foreign-key enforcement by default; turn it on per connection so
+    ON DELETE cascades and RESTRICTs behave as declared."""
+
+    @event.listens_for(engine, "connect")
+    def _set_pragma(dbapi_connection: object, _record: object) -> None:
+        cursor = dbapi_connection.cursor()  # type: ignore[attr-defined]
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+
 def create_db_engine(settings: Settings) -> Engine:
     """Create a SQLAlchemy engine from settings, applying provider-specific tuning."""
     url = settings.database_url
@@ -62,13 +73,16 @@ def create_db_engine(settings: Settings) -> Engine:
         # connection (StaticPool) so schema/data persist across sessions.
         connect_args = {"check_same_thread": False}
         if _is_sqlite_memory(url):
-            return create_engine(
+            engine = create_engine(
                 url,
                 echo=settings.db_echo,
                 connect_args=connect_args,
                 poolclass=StaticPool,
             )
-        return create_engine(url, echo=settings.db_echo, connect_args=connect_args)
+        else:
+            engine = create_engine(url, echo=settings.db_echo, connect_args=connect_args)
+        _enable_sqlite_foreign_keys(engine)
+        return engine
 
     # PostgreSQL (and other servers): pre-ping to drop stale pooled connections.
     return create_engine(url, echo=settings.db_echo, pool_pre_ping=True)

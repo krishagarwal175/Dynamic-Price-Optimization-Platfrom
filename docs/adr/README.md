@@ -15,6 +15,7 @@ An ADR is copied here only once it reaches **Accepted** status.
 | [ADR-0005](ADR-0005-frontend-state-and-charting.md) | Frontend state & charting | Accepted |
 | [ADR-0006](ADR-0006-rest-api-conventions.md) | REST API conventions | Accepted |
 | [ADR-0007](ADR-0007-persistence-conventions.md) | Persistence conventions (keys, timestamps, Alembic-only) | Accepted |
+| [ADR-0008](ADR-0008-core-business-data-model.md) | Core business data model (revises v1 entity set) | Accepted |
 
 New ADRs are appended with the next sequential number and never reused or deleted; a
 reversed decision is marked `Superseded`/`Deprecated`, not removed.

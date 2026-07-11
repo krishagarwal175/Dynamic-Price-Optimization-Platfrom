@@ -12,11 +12,11 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+# Import side-effect: registering all ORM models keeps Base.metadata complete for
+# autogenerate.
+import app.models  # noqa: F401  (imported for registration side-effect)
 from app.core.config import get_settings
 from app.core.database import Base
-
-# Import side-effect: registering ORM models here keeps Base.metadata complete for
-# autogenerate. No business models exist yet (M4 is persistence infrastructure only).
 
 config = context.config
 

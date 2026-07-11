@@ -27,6 +27,7 @@ from app.pricing.optimization import (
     OptimizationResult,
     optimize,
 )
+from app.pricing.reporting import PricingReport, ReportInput, generate_report
 from app.pricing.simulation import (
     ScenarioSpec,
     SimulationInput,
@@ -286,6 +287,87 @@ class AnalyticsService:
         )
         try:
             return simulate(sim_input)
+        except AnalyticsError as exc:
+            raise ValidationError(str(exc)) from exc
+
+    # --------------------------------------------------------------- reporting
+    def product_report(
+        self,
+        product_id: int,
+        *,
+        objective: Objective,
+        fixed_cost: Decimal = _ZERO,
+        scenarios: list[ScenarioSpec] | None = None,
+    ) -> tuple[Product, PricingReport]:
+        product, financial = self.product_financials(product_id, fixed_cost=fixed_cost)
+        _, elasticity = self.product_elasticity(product_id)
+        _, forecast = self.product_forecast(product_id)
+        _, optimization = self.product_optimization(
+            product_id, objective=objective, fixed_cost=fixed_cost
+        )
+        _, simulation = self.product_simulation(
+            product_id, objective=objective, fixed_cost=fixed_cost, scenarios=scenarios
+        )
+        report = self._report(
+            scope="product",
+            subject=f"{product.sku} — {product.name}",
+            currency=product.currency,
+            objective=objective,
+            financial=financial,
+            elasticity=elasticity,
+            forecast=forecast,
+            optimization=optimization,
+            simulation=simulation,
+        )
+        return product, report
+
+    def dataset_report(
+        self,
+        *,
+        objective: Objective,
+        fixed_cost: Decimal = _ZERO,
+        scenarios: list[ScenarioSpec] | None = None,
+    ) -> PricingReport:
+        return self._report(
+            scope="dataset",
+            subject="Aggregate dataset",
+            currency="USD",
+            objective=objective,
+            financial=self.dataset_financials(fixed_cost=fixed_cost),
+            elasticity=self.dataset_elasticity(),
+            forecast=self.dataset_forecast(),
+            optimization=self.dataset_optimization(objective=objective, fixed_cost=fixed_cost),
+            simulation=self.dataset_simulation(
+                objective=objective, fixed_cost=fixed_cost, scenarios=scenarios
+            ),
+        )
+
+    def _report(
+        self,
+        *,
+        scope: str,
+        subject: str,
+        currency: str,
+        objective: Objective,
+        financial: FinancialMetrics,
+        elasticity: ElasticityAnalysis,
+        forecast: ForecastResult,
+        optimization: OptimizationResult,
+        simulation: SimulationResult,
+    ) -> PricingReport:
+        report_input = ReportInput(
+            scope=scope,
+            subject=subject,
+            currency=currency,
+            objective=objective,
+            financial=financial,
+            elasticity=elasticity,
+            forecast=forecast,
+            optimization=optimization,
+            simulation=simulation,
+        )
+        try:
+            return generate_report(report_input)
         except AnalyticsError as exc:
             raise ValidationError(str(exc)) from exc
 

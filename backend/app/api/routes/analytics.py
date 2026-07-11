@@ -13,6 +13,7 @@ from fastapi import APIRouter, Query
 
 from app.api.deps import AnalyticsServiceDep
 from app.pricing.optimization import Objective, OptimizationConstraints
+from app.pricing.reporting import PricingReport, ReportFormat, render, to_dict
 from app.pricing.simulation import ScenarioSpec, ScenarioType
 from app.schemas.analytics import (
     CategoryFinancialsResponse,
@@ -36,6 +37,7 @@ from app.schemas.optimization import (
     OptimizationResultSchema,
     ProductOptimizationResponse,
 )
+from app.schemas.report import DatasetReportResponse, ProductReportResponse
 from app.schemas.simulation import (
     DatasetSimulationResponse,
     ProductSimulationResponse,
@@ -377,5 +379,66 @@ def product_simulation(
             sku=product.sku,
             name=product.name,
             simulation=SimulationResultSchema.model_validate(result),
+        )
+    )
+
+
+ReportFormatParam = Annotated[
+    ReportFormat,
+    Query(alias="format", description="Report output format: json, markdown, or text."),
+]
+
+
+def _rendered(
+    report: PricingReport, fmt: ReportFormat
+) -> tuple[dict[str, object] | None, str | None]:
+    """Return (json_report, text_content) for the requested format."""
+    if fmt is ReportFormat.JSON:
+        return to_dict(report), None
+    return None, render(report, fmt)
+
+
+@router.get(
+    "/report",
+    response_model=SuccessResponse[DatasetReportResponse],
+    summary="Full pricing analysis report for the aggregate dataset (read-only)",
+)
+def dataset_report(
+    service: AnalyticsServiceDep,
+    objective: ObjectiveParam = Objective.MAXIMIZE_GROSS_PROFIT,
+    fixed_cost: FixedCost = Decimal("0"),
+    report_format: ReportFormatParam = ReportFormat.JSON,
+) -> SuccessResponse[DatasetReportResponse]:
+    report = service.dataset_report(objective=objective, fixed_cost=fixed_cost)
+    report_dict, content = _rendered(report, report_format)
+    return SuccessResponse(
+        data=DatasetReportResponse(
+            scope="dataset", format=report_format, report=report_dict, content=content
+        )
+    )
+
+
+@router.get(
+    "/products/{product_id}/report",
+    response_model=SuccessResponse[ProductReportResponse],
+    summary="Full pricing analysis report for a product (read-only)",
+)
+def product_report(
+    product_id: int,
+    service: AnalyticsServiceDep,
+    objective: ObjectiveParam = Objective.MAXIMIZE_GROSS_PROFIT,
+    fixed_cost: FixedCost = Decimal("0"),
+    report_format: ReportFormatParam = ReportFormat.JSON,
+) -> SuccessResponse[ProductReportResponse]:
+    product, report = service.product_report(product_id, objective=objective, fixed_cost=fixed_cost)
+    report_dict, content = _rendered(report, report_format)
+    return SuccessResponse(
+        data=ProductReportResponse(
+            product_id=product.id,
+            sku=product.sku,
+            name=product.name,
+            format=report_format,
+            report=report_dict,
+            content=content,
         )
     )

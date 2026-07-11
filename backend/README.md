@@ -3,13 +3,12 @@
 FastAPI service that exposes the pricing, simulation, and catalog capabilities of the
 platform. This document defines the layered structure that implementation follows.
 
-> **Status (through M11):** infrastructure + data model + ingestion + five pricing engines.
-> On top of the persistence foundation, core data model, and ingestion pipeline, the
-> service has five pure, deterministic engines — **financial metrics**
-> (`app/pricing/finance/`), **price elasticity** (`app/pricing/elasticity/`), **demand
-> forecasting** (`app/pricing/forecasting/`), the **pricing-optimization** decision engine
-> (`app/pricing/optimization/`), and the **scenario-simulation** what-if engine
-> (`app/pricing/simulation/`) — all read-only. **No** reporting, dashboards, or automatic
+> **Status (through M12):** infrastructure + data model + ingestion + five analytics engines
+> + reporting. On top of the persistence foundation, core data model, and ingestion pipeline,
+> the service has five pure, deterministic engines — **financial metrics**, **price
+> elasticity**, **demand forecasting**, **pricing optimization**, and **scenario simulation**
+> — plus a pure **reporting/export** layer (`app/pricing/reporting/`) that composes them into
+> JSON/Markdown/text reports. All read-only. **No** dashboards, PDF export, or automatic
 > price updates yet.
 
 ## Quick start
@@ -37,6 +36,8 @@ cp .env.example .env                                 # optional; sane defaults o
   `GET /api/v1/analytics/products/{id}/optimization` (with objective + constraint params)
 - Scenario simulation (read-only, what-if): `GET /api/v1/analytics/simulation` ·
   `GET /api/v1/analytics/products/{id}/simulation` (scenario/price/percentage params)
+- Reporting (read-only, json/markdown/text): `GET /api/v1/analytics/report` ·
+  `GET /api/v1/analytics/products/{id}/report` (format/objective params)
 - Swagger UI: `/docs` · ReDoc: `/redoc` · OpenAPI schema: `/openapi.json`
 
 ## Database & migrations

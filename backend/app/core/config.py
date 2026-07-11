@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     database_url: str = Field(default="sqlite:///./var/dpop.db")
     db_echo: bool = Field(default=False)
 
+    # File storage & upload limits (dataset ingestion).
+    file_storage_path: str = Field(default="./var/storage")
+    max_upload_bytes: int = Field(default=10 * 1024 * 1024)  # 10 MiB
+    preview_sample_rows: int = Field(default=20)
+
     @field_validator("log_level")
     @classmethod
     def _normalize_log_level(cls, value: str) -> str:

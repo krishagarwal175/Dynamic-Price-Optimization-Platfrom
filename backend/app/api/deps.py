@@ -15,8 +15,16 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.config import Settings, get_settings
 from app.core.database import session_scope
 from app.services.health import HealthService
+from app.services.ingestion import IngestionService
+from app.storage.base import FileStorage
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
+
+
+def get_file_storage(request: Request) -> FileStorage:
+    """Return the app-wide file storage backend (built in the composition root)."""
+    storage: FileStorage = request.app.state.file_storage
+    return storage
 
 
 def get_db(request: Request) -> Iterator[Session]:
@@ -39,3 +47,16 @@ def get_health_service(settings: SettingsDep) -> HealthService:
 
 
 HealthServiceDep = Annotated[HealthService, Depends(get_health_service)]
+
+FileStorageDep = Annotated[FileStorage, Depends(get_file_storage)]
+
+
+def get_ingestion_service(
+    session: DbSessionDep,
+    storage: FileStorageDep,
+    settings: SettingsDep,
+) -> IngestionService:
+    return IngestionService(session, storage, settings)
+
+
+IngestionServiceDep = Annotated[IngestionService, Depends(get_ingestion_service)]

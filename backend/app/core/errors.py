@@ -21,6 +21,8 @@ logger = get_logger(__name__)
 # HTTP status codes (explicit integers; avoids a deprecated Starlette constant name).
 HTTP_404_NOT_FOUND = 404
 HTTP_409_CONFLICT = 409
+HTTP_413_TOO_LARGE = 413
+HTTP_415_UNSUPPORTED_MEDIA_TYPE = 415
 HTTP_422_UNPROCESSABLE = 422
 HTTP_500_INTERNAL = 500
 
@@ -58,6 +60,16 @@ class ValidationError(AppError):
 class ConflictError(AppError):
     code = "CONFLICT"
     status_code = HTTP_409_CONFLICT
+
+
+class UnsupportedMediaTypeError(AppError):
+    code = "UNSUPPORTED_MEDIA_TYPE"
+    status_code = HTTP_415_UNSUPPORTED_MEDIA_TYPE
+
+
+class PayloadTooLargeError(AppError):
+    code = "PAYLOAD_TOO_LARGE"
+    status_code = HTTP_413_TOO_LARGE
 
 
 def _envelope(code: str, message: str, details: list[ErrorDetail] | None) -> JSONResponse:

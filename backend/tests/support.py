@@ -6,12 +6,54 @@ entity and lives entirely in the test tree.
 
 from __future__ import annotations
 
+import io
+
+import pandas as pd
 from sqlalchemy import Engine, String
 from sqlalchemy.orm import Mapped, Session, mapped_column, sessionmaker
 
 from app.core.config import AppEnv, Settings
 from app.core.database import Base, create_db_engine, create_session_factory
 from app.core.orm import IntIdMixin, TimestampMixin
+
+# A well-formed product-catalog dataset (two categories, three products).
+VALID_CATALOG_ROWS = [
+    {
+        "sku": "SKU-1",
+        "name": "Cola",
+        "category": "Beverages",
+        "unit_cost": "1.00",
+        "base_price": "2.50",
+    },
+    {
+        "sku": "SKU-2",
+        "name": "Water",
+        "category": "Beverages",
+        "unit_cost": "0.50",
+        "base_price": "1.20",
+    },
+    {
+        "sku": "SKU-3",
+        "name": "Chips",
+        "category": "Snacks",
+        "unit_cost": "0.80",
+        "base_price": "1.90",
+    },
+]
+
+
+def catalog_df(rows: list[dict[str, str]] | None = None) -> pd.DataFrame:
+    return pd.DataFrame(rows if rows is not None else VALID_CATALOG_ROWS, dtype=str)
+
+
+def to_csv_bytes(df: pd.DataFrame) -> bytes:
+    return df.to_csv(index=False).encode("utf-8")
+
+
+def to_xlsx_bytes(df: pd.DataFrame) -> bytes:
+    buffer = io.BytesIO()
+    df.to_excel(buffer, index=False, engine="openpyxl")
+    return buffer.getvalue()
 
 
 class ExampleRecord(Base, IntIdMixin, TimestampMixin):

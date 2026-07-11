@@ -3,12 +3,13 @@
 FastAPI service that exposes the pricing, simulation, and catalog capabilities of the
 platform. This document defines the layered structure that implementation follows.
 
-> **Status (through M4):** infrastructure only. The service boots with typed configuration,
-> structured logging, a request-correlation middleware, a global exception handler +
-> standard response/error envelope, OpenAPI docs, a health endpoint, and a **persistence
-> foundation** (SQLAlchemy 2.0 engine/session, Alembic migrations, generic repository
-> base, DB utilities). **No** business entities, pricing, analytics, forecasting, or
-> optimization logic exists yet (later milestones).
+> **Status (through M6):** infrastructure + data model + ingestion. The service boots with
+> typed configuration, structured logging, a request-correlation middleware, a global
+> exception handler + standard response/error envelope, OpenAPI docs, a health endpoint, a
+> **persistence foundation** (SQLAlchemy 2.0, Alembic, generic repository base), the
+> **core business data model** (Category/Product/HistoricalSale/Competitor), and a
+> **dataset ingestion pipeline** (upload → validation → preview → import for CSV/Excel).
+> **No** pricing, analytics, forecasting, optimization, or reporting logic yet.
 
 ## Quick start
 
@@ -23,6 +24,8 @@ cp .env.example .env                                 # optional; sane defaults o
 ```
 
 - Health: `GET /api/v1/health`
+- Dataset ingestion: `POST /api/v1/datasets/upload` · `GET /api/v1/datasets/{id}/preview`
+  · `POST /api/v1/datasets/{id}/import`
 - Swagger UI: `/docs` · ReDoc: `/redoc` · OpenAPI schema: `/openapi.json`
 
 ## Database & migrations

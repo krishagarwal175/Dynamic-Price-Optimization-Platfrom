@@ -22,6 +22,7 @@ from app.core.database import (
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
 from app.core.middleware import RequestContextMiddleware
+from app.storage.local import LocalFileStorage
 
 API_DESCRIPTION = (
     "Backend service for the Dynamic Pricing Optimization Platform. "
@@ -65,6 +66,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # session factory this app was built with.
     app.state.db_engine = engine
     app.state.db_sessionmaker = session_factory
+
+    # File storage backend for dataset ingestion (local filesystem in v1).
+    app.state.file_storage = LocalFileStorage(settings.file_storage_path)
 
     # Bind the composed settings instance so every ``Depends(get_settings)`` resolves to
     # the configuration this app was built with (not a re-read of the environment).

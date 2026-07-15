@@ -1,4 +1,6 @@
-/** Thin, theme-consistent wrappers over Recharts. Charts stay simple (no animations). */
+/** Thin, theme-consistent wrappers over Recharts. Charts stay simple (no animations).
+ *  Recharts takes explicit color strings (not CSS classes), so colors are resolved from
+ *  the active theme here to keep charts legible in both light and dark mode. */
 import {
   Area,
   Bar,
@@ -12,10 +14,9 @@ import {
   YAxis,
 } from "recharts";
 
-export const CHART_COLORS = ["#4f46e5", "#059669", "#d97706", "#6b7280", "#db2777"];
+import { useUiStore } from "@/services/store";
 
-const AXIS = { fontSize: 11, fill: "#9ca3af" } as const;
-const GRID = "#e5e7eb";
+export const CHART_COLORS = ["#4f46e5", "#059669", "#d97706", "#6b7280", "#db2777"];
 
 interface Series {
   key: string;
@@ -23,13 +24,49 @@ interface Series {
   color?: string;
 }
 
-const tooltipStyle = {
-  fontSize: 12,
-  borderRadius: 8,
-  border: "1px solid #e5e7eb",
-  background: "#ffffff",
-  color: "#111827",
-} as const;
+interface ChartTheme {
+  axis: { fontSize: number; fill: string };
+  grid: string;
+  /** Fills the area below the forecast band's lower bound; must match the card surface. */
+  surface: string;
+  tooltip: {
+    fontSize: number;
+    borderRadius: number;
+    border: string;
+    background: string;
+    color: string;
+  };
+}
+
+const LIGHT: ChartTheme = {
+  axis: { fontSize: 11, fill: "#9ca3af" },
+  grid: "#e5e7eb",
+  surface: "#ffffff",
+  tooltip: {
+    fontSize: 12,
+    borderRadius: 8,
+    border: "1px solid #e5e7eb",
+    background: "#ffffff",
+    color: "#111827",
+  },
+};
+
+const DARK: ChartTheme = {
+  axis: { fontSize: 11, fill: "#9ca3af" },
+  grid: "#374151",
+  surface: "#171717", // neutral-900, matches the dark card surface
+  tooltip: {
+    fontSize: 12,
+    borderRadius: 8,
+    border: "1px solid #374151",
+    background: "#171717",
+    color: "#f5f5f5",
+  },
+};
+
+function useChartTheme(): ChartTheme {
+  return useUiStore((s) => s.theme) === "dark" ? DARK : LIGHT;
+}
 
 export function LineSeriesChart<T extends object>({
   data,
@@ -42,13 +79,14 @@ export function LineSeriesChart<T extends object>({
   series: Series[];
   band?: { lower: string; upper: string; color?: string };
 }) {
+  const t = useChartTheme();
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 4 }}>
-        <CartesianGrid stroke={GRID} strokeDasharray="3 3" vertical={false} />
-        <XAxis dataKey={xKey} tick={AXIS} tickLine={false} axisLine={false} minTickGap={24} />
-        <YAxis tick={AXIS} tickLine={false} axisLine={false} width={48} />
-        <Tooltip contentStyle={tooltipStyle} />
+        <CartesianGrid stroke={t.grid} strokeDasharray="3 3" vertical={false} />
+        <XAxis dataKey={xKey} tick={t.axis} tickLine={false} axisLine={false} minTickGap={24} />
+        <YAxis tick={t.axis} tickLine={false} axisLine={false} width={48} />
+        <Tooltip contentStyle={t.tooltip} />
         {band ? (
           <Area
             type="monotone"
@@ -64,7 +102,7 @@ export function LineSeriesChart<T extends object>({
             type="monotone"
             dataKey={band.lower}
             stroke="none"
-            fill="#ffffff"
+            fill={t.surface}
             fillOpacity={1}
             isAnimationActive={false}
           />
@@ -95,13 +133,14 @@ export function BarSeriesChart<T extends object>({
   xKey: string;
   series: Series[];
 }) {
+  const t = useChartTheme();
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 4 }}>
-        <CartesianGrid stroke={GRID} strokeDasharray="3 3" vertical={false} />
-        <XAxis dataKey={xKey} tick={AXIS} tickLine={false} axisLine={false} minTickGap={12} />
-        <YAxis tick={AXIS} tickLine={false} axisLine={false} width={48} />
-        <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(0,0,0,0.03)" }} />
+        <CartesianGrid stroke={t.grid} strokeDasharray="3 3" vertical={false} />
+        <XAxis dataKey={xKey} tick={t.axis} tickLine={false} axisLine={false} minTickGap={12} />
+        <YAxis tick={t.axis} tickLine={false} axisLine={false} width={48} />
+        <Tooltip contentStyle={t.tooltip} cursor={{ fill: "rgba(0,0,0,0.06)" }} />
         {series.map((s, i) => (
           <Bar
             key={s.key}

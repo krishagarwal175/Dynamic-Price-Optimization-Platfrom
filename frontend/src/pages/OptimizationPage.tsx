@@ -20,7 +20,8 @@ const OBJECTIVES: { value: Objective; label: string }[] = [
 ];
 
 export function OptimizationPage() {
-  const { scope, scopeLabel } = useUiStore();
+  const scope = useUiStore((s) => s.scope);
+  const scopeLabel = useUiStore((s) => s.scopeLabel);
   const [objective, setObjective] = useState<Objective>("maximize_gross_profit");
   const optimization = useOptimization(scope, objective);
 

@@ -40,4 +40,7 @@ class CatalogService:
         return product
 
     def list_categories(self) -> list[Category]:
-        return self._categories.list(PageParams(limit=200)).items
+        # Return the full category set (used to populate the catalog filter). Size the page
+        # to the actual count so the list is never silently truncated.
+        total = self._categories.count()
+        return self._categories.list(PageParams(limit=max(total, 1))).items

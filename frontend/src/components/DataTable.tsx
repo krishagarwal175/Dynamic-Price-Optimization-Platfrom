@@ -29,7 +29,7 @@ export function DataTable<T>({ columns, data, onRowClick }: Props<T>) {
   });
 
   return (
-    <div className="surface overflow-hidden">
+    <div className="surface overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="border-b border-neutral-200 bg-neutral-50/60 dark:border-neutral-800 dark:bg-neutral-900">
           {table.getHeaderGroups().map((group) => (
@@ -37,20 +37,31 @@ export function DataTable<T>({ columns, data, onRowClick }: Props<T>) {
               {group.headers.map((header) => {
                 const sortable = header.column.getCanSort();
                 const dir = header.column.getIsSorted();
+                const label = flexRender(header.column.columnDef.header, header.getContext());
+                const indicator = dir ? (
+                  <span aria-hidden="true">{dir === "asc" ? "↑" : "↓"}</span>
+                ) : null;
                 return (
                   <th
                     key={header.id}
-                    className={cn(
-                      "px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400",
-                      sortable && "cursor-pointer select-none",
-                    )}
-                    onClick={sortable ? header.column.getToggleSortingHandler() : undefined}
+                    className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400"
                     aria-sort={dir === "asc" ? "ascending" : dir === "desc" ? "descending" : "none"}
                   >
-                    <span className="inline-flex items-center gap-1">
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {dir ? <span aria-hidden="true">{dir === "asc" ? "↑" : "↓"}</span> : null}
-                    </span>
+                    {sortable ? (
+                      <button
+                        type="button"
+                        className="inline-flex select-none items-center gap-1 uppercase tracking-wide"
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {label}
+                        {indicator}
+                      </button>
+                    ) : (
+                      <span className="inline-flex items-center gap-1">
+                        {label}
+                        {indicator}
+                      </span>
+                    )}
                   </th>
                 );
               })}

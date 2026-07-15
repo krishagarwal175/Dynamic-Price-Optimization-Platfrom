@@ -1,8 +1,12 @@
 import { useProducts } from "@/services/hooks";
-import { applyTheme, useUiStore } from "@/services/store";
+import { useUiStore } from "@/services/store";
 
-export function Topbar() {
-  const { scope, scopeLabel, setScope, theme, toggleTheme } = useUiStore();
+export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
+  const scope = useUiStore((s) => s.scope);
+  const scopeLabel = useUiStore((s) => s.scopeLabel);
+  const setScope = useUiStore((s) => s.setScope);
+  const theme = useUiStore((s) => s.theme);
+  const toggleTheme = useUiStore((s) => s.toggleTheme);
   const products = useProducts({ limit: 200 });
 
   const onScopeChange = (value: string) => {
@@ -15,14 +19,17 @@ export function Topbar() {
     setScope(id, product ? `${product.sku} — ${product.name}` : `Product ${id}`);
   };
 
-  const onToggleTheme = () => {
-    toggleTheme();
-    applyTheme(theme === "light" ? "dark" : "light");
-  };
-
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-neutral-200 bg-white/80 px-4 backdrop-blur dark:border-neutral-800 dark:bg-neutral-900/80 sm:px-6">
       <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          className="btn-ghost lg:hidden"
+          aria-label="Open navigation menu"
+        >
+          ☰
+        </button>
         <label htmlFor="scope" className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
           Scope
         </label>
@@ -45,7 +52,7 @@ export function Topbar() {
         <span className="hidden text-xs text-neutral-400 sm:inline">{scopeLabel}</span>
         <button
           type="button"
-          onClick={onToggleTheme}
+          onClick={toggleTheme}
           className="btn-ghost"
           aria-label="Toggle color theme"
         >

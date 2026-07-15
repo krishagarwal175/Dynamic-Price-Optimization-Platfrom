@@ -45,6 +45,18 @@ class BaseRepository(Generic[ModelT]):
         self._session.flush()  # assign PK / defaults without committing
         return entity
 
+    def add_all(self, entities: list[ModelT]) -> list[ModelT]:
+        """Add many entities with a single flush.
+
+        The bulk write path (e.g. dataset import): one ``flush`` round-trip instead of one
+        per row. The caller still owns the transaction boundary.
+        """
+        if not entities:
+            return entities
+        self._session.add_all(entities)
+        self._session.flush()
+        return entities
+
     def get(self, entity_id: object) -> ModelT | None:
         return self._session.get(self._model, entity_id)
 

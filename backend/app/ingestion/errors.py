@@ -15,9 +15,5 @@ class UnsupportedFileTypeError(IngestionError):
     """The uploaded file type is not supported."""
 
 
-class FileTooLargeError(IngestionError):
-    """The uploaded file exceeds the configured size limit."""
-
-
 class ParsingError(IngestionError):
     """The file could not be parsed into a table."""

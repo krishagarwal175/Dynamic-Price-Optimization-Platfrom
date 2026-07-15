@@ -8,7 +8,8 @@ import { useUiStore } from "@/services/store";
 import type { Objective, ReportFormat } from "@/services/types";
 
 export function ReportsPage() {
-  const { scope, scopeLabel } = useUiStore();
+  const scope = useUiStore((s) => s.scope);
+  const scopeLabel = useUiStore((s) => s.scopeLabel);
   const [format, setFormat] = useState<ReportFormat>("markdown");
   const objective: Objective = "maximize_gross_profit";
   const report = useReport(scope, format, objective);

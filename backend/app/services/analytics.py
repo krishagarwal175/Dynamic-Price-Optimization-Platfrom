@@ -3,6 +3,10 @@
 This is the boundary between the framework-free analytics engines and the rest of the
 app. It loads data via repositories, feeds plain value objects to the engine, and maps
 analytics domain errors onto API errors. It contains no financial formulas itself.
+
+Composite endpoints (optimization, simulation, report) compute each engine result **once**
+per request and thread it through the downstream engines, rather than re-deriving elasticity
+and forecasts several times via the single-purpose methods.
 """
 
 from __future__ import annotations
@@ -13,6 +17,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.core.errors import NotFoundError, ValidationError
+from app.core.logging import get_logger
 from app.models.category import Category
 from app.models.product import Product
 from app.pricing.elasticity import ElasticityAnalysis, Observation, analyze_elasticity
@@ -39,7 +44,13 @@ from app.repositories.category import CategoryRepository
 from app.repositories.historical_sale import HistoricalSaleRepository
 from app.repositories.product import ProductRepository
 
+logger = get_logger(__name__)
+
 _ZERO = Decimal("0")
+_DEFAULT_HORIZON = 4
+
+# Row shape returned by ``HistoricalSaleRepository.unit_economics``.
+EconomicsRows = list[tuple[int, Decimal, Decimal]]
 
 
 class AnalyticsService:
@@ -48,6 +59,7 @@ class AnalyticsService:
         self._categories = CategoryRepository(session)
         self._sales = HistoricalSaleRepository(session)
 
+    # ------------------------------------------------------------------ finance
     def dataset_financials(self, *, fixed_cost: Decimal = _ZERO) -> FinancialMetrics:
         rows = self._sales.unit_economics()
         return self._compute(rows, fixed_cost)
@@ -55,9 +67,7 @@ class AnalyticsService:
     def product_financials(
         self, product_id: int, *, fixed_cost: Decimal = _ZERO
     ) -> tuple[Product, FinancialMetrics]:
-        product = self._products.get(product_id)
-        if product is None:
-            raise NotFoundError(f"Product {product_id} not found.")
+        product = self._require_product(product_id)
         rows = self._sales.unit_economics(product_id=product_id)
         return product, self._compute(rows, fixed_cost)
 
@@ -70,19 +80,15 @@ class AnalyticsService:
         rows = self._sales.unit_economics(category_id=category_id)
         return category, self._compute(rows, fixed_cost)
 
-    def _compute(
-        self, rows: list[tuple[int, Decimal, Decimal]], fixed_cost: Decimal
-    ) -> FinancialMetrics:
+    def _compute(self, rows: EconomicsRows, fixed_cost: Decimal) -> FinancialMetrics:
         lines = [
             SaleLine(quantity=quantity, unit_price=unit_price, unit_cost=unit_cost)
             for quantity, unit_price, unit_cost in rows
         ]
         try:
             return compute_financials(lines, fixed_cost=fixed_cost)
-        except InsufficientDataError as exc:
-            raise ValidationError(str(exc)) from exc
         except AnalyticsError as exc:
-            raise ValidationError(str(exc)) from exc
+            raise self._as_api_error(exc) from exc
 
     # --------------------------------------------------------------- elasticity
     def dataset_elasticity(self) -> ElasticityAnalysis:
@@ -90,15 +96,11 @@ class AnalyticsService:
         return self._analyze(rows, _weighted_unit_cost(rows))
 
     def product_elasticity(self, product_id: int) -> tuple[Product, ElasticityAnalysis]:
-        product = self._products.get(product_id)
-        if product is None:
-            raise NotFoundError(f"Product {product_id} not found.")
+        product = self._require_product(product_id)
         rows = self._sales.unit_economics(product_id=product_id)
         return product, self._analyze(rows, float(product.unit_cost))
 
-    def _analyze(
-        self, rows: list[tuple[int, Decimal, Decimal]], unit_cost: float | None
-    ) -> ElasticityAnalysis:
+    def _analyze(self, rows: EconomicsRows, unit_cost: float | None) -> ElasticityAnalysis:
         observations = [
             Observation(price=float(unit_price), quantity=float(quantity))
             for quantity, unit_price, _unit_cost in rows
@@ -106,19 +108,17 @@ class AnalyticsService:
         try:
             return analyze_elasticity(observations, unit_cost=unit_cost)
         except AnalyticsError as exc:
-            raise ValidationError(str(exc)) from exc
+            raise self._as_api_error(exc) from exc
 
     # --------------------------------------------------------------- forecasting
-    def dataset_forecast(self, *, horizon: int = 4) -> ForecastResult:
+    def dataset_forecast(self, *, horizon: int = _DEFAULT_HORIZON) -> ForecastResult:
         rows = self._sales.demand_by_period()
         return self._forecast(rows, horizon)
 
     def product_forecast(
-        self, product_id: int, *, horizon: int = 4
+        self, product_id: int, *, horizon: int = _DEFAULT_HORIZON
     ) -> tuple[Product, ForecastResult]:
-        product = self._products.get(product_id)
-        if product is None:
-            raise NotFoundError(f"Product {product_id} not found.")
+        product = self._require_product(product_id)
         rows = self._sales.demand_by_period(product_id=product_id)
         return product, self._forecast(rows, horizon)
 
@@ -129,7 +129,7 @@ class AnalyticsService:
         try:
             return forecast_demand(observations, horizon=horizon)
         except AnalyticsError as exc:
-            raise ValidationError(str(exc)) from exc
+            raise self._as_api_error(exc) from exc
 
     # --------------------------------------------------------------- optimization
     def product_optimization(
@@ -140,14 +140,11 @@ class AnalyticsService:
         fixed_cost: Decimal = _ZERO,
         constraints: OptimizationConstraints | None = None,
     ) -> tuple[Product, OptimizationResult]:
-        product, elasticity_analysis = self.product_elasticity(product_id)
-        _, forecast_result = self.product_forecast(product_id)
-        reference_demand = forecast_result.forecast[0].predicted
-        result = self._optimize(
-            current_price=float(product.base_price),
-            variable_cost=float(product.unit_cost),
-            reference_demand=reference_demand,
-            elasticity=elasticity_analysis.elasticity_coefficient,
+        product, _rows, elasticity, forecast = self._product_inputs(product_id)
+        result = self._optimize_product(
+            product,
+            elasticity,
+            forecast,
             objective=objective,
             fixed_cost=fixed_cost,
             constraints=constraints,
@@ -164,21 +161,15 @@ class AnalyticsService:
         # Aggregate the dataset as a single representative product (average selling price,
         # weighted unit cost, aggregate elasticity + forecast). This is a single-curve
         # optimization, not joint multi-product optimization.
-        elasticity_analysis = self.dataset_elasticity()
-        forecast_result = self.dataset_forecast()
-        rows = self._sales.unit_economics()
-        current_price = _average_selling_price(rows)
-        variable_cost = _weighted_unit_cost(rows) or 0.0
-        if current_price is None:
-            raise ValidationError("No sales data available to optimize.")
-        return self._optimize(
-            current_price=current_price,
-            variable_cost=variable_cost,
-            reference_demand=forecast_result.forecast[0].predicted,
-            elasticity=elasticity_analysis.elasticity_coefficient,
+        rows, elasticity, forecast = self._dataset_inputs()
+        return self._optimize_dataset(
+            rows,
+            elasticity,
+            forecast,
             objective=objective,
             fixed_cost=fixed_cost,
             constraints=constraints,
+            action="optimize",
         )
 
     def _optimize(
@@ -204,7 +195,51 @@ class AnalyticsService:
         try:
             return optimize(opt_input)
         except AnalyticsError as exc:
-            raise ValidationError(str(exc)) from exc
+            raise self._as_api_error(exc) from exc
+
+    def _optimize_product(
+        self,
+        product: Product,
+        elasticity: ElasticityAnalysis,
+        forecast: ForecastResult,
+        *,
+        objective: Objective,
+        fixed_cost: Decimal,
+        constraints: OptimizationConstraints | None,
+    ) -> OptimizationResult:
+        return self._optimize(
+            current_price=float(product.base_price),
+            variable_cost=float(product.unit_cost),
+            reference_demand=forecast.forecast[0].predicted,
+            elasticity=elasticity.elasticity_coefficient,
+            objective=objective,
+            fixed_cost=fixed_cost,
+            constraints=constraints,
+        )
+
+    def _optimize_dataset(
+        self,
+        rows: EconomicsRows,
+        elasticity: ElasticityAnalysis,
+        forecast: ForecastResult,
+        *,
+        objective: Objective,
+        fixed_cost: Decimal,
+        constraints: OptimizationConstraints | None,
+        action: str,
+    ) -> OptimizationResult:
+        current_price = _average_selling_price(rows)
+        if current_price is None:
+            raise ValidationError(f"No sales data available to {action}.")
+        return self._optimize(
+            current_price=current_price,
+            variable_cost=_weighted_unit_cost(rows) or 0.0,
+            reference_demand=forecast.forecast[0].predicted,
+            elasticity=elasticity.elasticity_coefficient,
+            objective=objective,
+            fixed_cost=fixed_cost,
+            constraints=constraints,
+        )
 
     # --------------------------------------------------------------- simulation
     def product_simulation(
@@ -215,16 +250,11 @@ class AnalyticsService:
         fixed_cost: Decimal = _ZERO,
         scenarios: list[ScenarioSpec] | None = None,
     ) -> tuple[Product, SimulationResult]:
-        product, elasticity_analysis = self.product_elasticity(product_id)
-        _, forecast_result = self.product_forecast(product_id)
-        _, optimization = self.product_optimization(product_id, objective=objective)
-        result = self._simulate(
-            current_price=float(product.base_price),
-            variable_cost=float(product.unit_cost),
-            baseline_demand=forecast_result.forecast[0].predicted,
-            elasticity=elasticity_analysis.elasticity_coefficient,
-            recommended_price=optimization.recommended_price,
-            constraint_summary=", ".join(optimization.active_constraints) or None,
+        product, _rows, elasticity, forecast = self._product_inputs(product_id)
+        result = self._simulate_product(
+            product,
+            elasticity,
+            forecast,
             objective=objective,
             fixed_cost=fixed_cost,
             scenarios=scenarios,
@@ -238,20 +268,11 @@ class AnalyticsService:
         fixed_cost: Decimal = _ZERO,
         scenarios: list[ScenarioSpec] | None = None,
     ) -> SimulationResult:
-        elasticity_analysis = self.dataset_elasticity()
-        forecast_result = self.dataset_forecast()
-        optimization = self.dataset_optimization(objective=objective)
-        rows = self._sales.unit_economics()
-        current_price = _average_selling_price(rows)
-        if current_price is None:
-            raise ValidationError("No sales data available to simulate.")
-        return self._simulate(
-            current_price=current_price,
-            variable_cost=_weighted_unit_cost(rows) or 0.0,
-            baseline_demand=forecast_result.forecast[0].predicted,
-            elasticity=elasticity_analysis.elasticity_coefficient,
-            recommended_price=optimization.recommended_price,
-            constraint_summary=", ".join(optimization.active_constraints) or None,
+        rows, elasticity, forecast = self._dataset_inputs()
+        return self._simulate_dataset(
+            rows,
+            elasticity,
+            forecast,
             objective=objective,
             fixed_cost=fixed_cost,
             scenarios=scenarios,
@@ -288,7 +309,68 @@ class AnalyticsService:
         try:
             return simulate(sim_input)
         except AnalyticsError as exc:
-            raise ValidationError(str(exc)) from exc
+            raise self._as_api_error(exc) from exc
+
+    def _simulate_product(
+        self,
+        product: Product,
+        elasticity: ElasticityAnalysis,
+        forecast: ForecastResult,
+        *,
+        objective: Objective,
+        fixed_cost: Decimal,
+        scenarios: list[ScenarioSpec] | None,
+    ) -> SimulationResult:
+        # The recommendation is derived at the baseline (no fixed cost), matching the
+        # standalone optimization the recommendation is compared against.
+        optimization = self._optimize_product(
+            product, elasticity, forecast, objective=objective, fixed_cost=_ZERO, constraints=None
+        )
+        return self._simulate(
+            current_price=float(product.base_price),
+            variable_cost=float(product.unit_cost),
+            baseline_demand=forecast.forecast[0].predicted,
+            elasticity=elasticity.elasticity_coefficient,
+            recommended_price=optimization.recommended_price,
+            constraint_summary=", ".join(optimization.active_constraints) or None,
+            objective=objective,
+            fixed_cost=fixed_cost,
+            scenarios=scenarios,
+        )
+
+    def _simulate_dataset(
+        self,
+        rows: EconomicsRows,
+        elasticity: ElasticityAnalysis,
+        forecast: ForecastResult,
+        *,
+        objective: Objective,
+        fixed_cost: Decimal,
+        scenarios: list[ScenarioSpec] | None,
+    ) -> SimulationResult:
+        optimization = self._optimize_dataset(
+            rows,
+            elasticity,
+            forecast,
+            objective=objective,
+            fixed_cost=_ZERO,
+            constraints=None,
+            action="simulate",
+        )
+        current_price = _average_selling_price(rows)
+        if current_price is None:
+            raise ValidationError("No sales data available to simulate.")
+        return self._simulate(
+            current_price=current_price,
+            variable_cost=_weighted_unit_cost(rows) or 0.0,
+            baseline_demand=forecast.forecast[0].predicted,
+            elasticity=elasticity.elasticity_coefficient,
+            recommended_price=optimization.recommended_price,
+            constraint_summary=", ".join(optimization.active_constraints) or None,
+            objective=objective,
+            fixed_cost=fixed_cost,
+            scenarios=scenarios,
+        )
 
     # --------------------------------------------------------------- reporting
     def product_report(
@@ -299,14 +381,23 @@ class AnalyticsService:
         fixed_cost: Decimal = _ZERO,
         scenarios: list[ScenarioSpec] | None = None,
     ) -> tuple[Product, PricingReport]:
-        product, financial = self.product_financials(product_id, fixed_cost=fixed_cost)
-        _, elasticity = self.product_elasticity(product_id)
-        _, forecast = self.product_forecast(product_id)
-        _, optimization = self.product_optimization(
-            product_id, objective=objective, fixed_cost=fixed_cost
+        product, rows, elasticity, forecast = self._product_inputs(product_id)
+        financial = self._compute(rows, fixed_cost)
+        optimization = self._optimize_product(
+            product,
+            elasticity,
+            forecast,
+            objective=objective,
+            fixed_cost=fixed_cost,
+            constraints=None,
         )
-        _, simulation = self.product_simulation(
-            product_id, objective=objective, fixed_cost=fixed_cost, scenarios=scenarios
+        simulation = self._simulate_product(
+            product,
+            elasticity,
+            forecast,
+            objective=objective,
+            fixed_cost=fixed_cost,
+            scenarios=scenarios,
         )
         report = self._report(
             scope="product",
@@ -328,18 +419,35 @@ class AnalyticsService:
         fixed_cost: Decimal = _ZERO,
         scenarios: list[ScenarioSpec] | None = None,
     ) -> PricingReport:
+        rows, elasticity, forecast = self._dataset_inputs()
+        financial = self._compute(rows, fixed_cost)
+        optimization = self._optimize_dataset(
+            rows,
+            elasticity,
+            forecast,
+            objective=objective,
+            fixed_cost=fixed_cost,
+            constraints=None,
+            action="report",
+        )
+        simulation = self._simulate_dataset(
+            rows,
+            elasticity,
+            forecast,
+            objective=objective,
+            fixed_cost=fixed_cost,
+            scenarios=scenarios,
+        )
         return self._report(
             scope="dataset",
             subject="Aggregate dataset",
             currency="USD",
             objective=objective,
-            financial=self.dataset_financials(fixed_cost=fixed_cost),
-            elasticity=self.dataset_elasticity(),
-            forecast=self.dataset_forecast(),
-            optimization=self.dataset_optimization(objective=objective, fixed_cost=fixed_cost),
-            simulation=self.dataset_simulation(
-                objective=objective, fixed_cost=fixed_cost, scenarios=scenarios
-            ),
+            financial=financial,
+            elasticity=elasticity,
+            forecast=forecast,
+            optimization=optimization,
+            simulation=simulation,
         )
 
     def _report(
@@ -369,10 +477,51 @@ class AnalyticsService:
         try:
             return generate_report(report_input)
         except AnalyticsError as exc:
-            raise ValidationError(str(exc)) from exc
+            raise self._as_api_error(exc) from exc
+
+    # ----------------------------------------------------------------- helpers
+    def _require_product(self, product_id: int) -> Product:
+        product = self._products.get(product_id)
+        if product is None:
+            raise NotFoundError(f"Product {product_id} not found.")
+        return product
+
+    def _product_inputs(
+        self, product_id: int
+    ) -> tuple[Product, EconomicsRows, ElasticityAnalysis, ForecastResult]:
+        """Load the product and compute its elasticity + forecast exactly once."""
+        product = self._require_product(product_id)
+        rows = self._sales.unit_economics(product_id=product_id)
+        elasticity = self._analyze(rows, float(product.unit_cost))
+        forecast = self._forecast(
+            self._sales.demand_by_period(product_id=product_id), _DEFAULT_HORIZON
+        )
+        return product, rows, elasticity, forecast
+
+    def _dataset_inputs(
+        self,
+    ) -> tuple[EconomicsRows, ElasticityAnalysis, ForecastResult]:
+        """Load the aggregate rows and compute elasticity + forecast exactly once."""
+        rows = self._sales.unit_economics()
+        elasticity = self._analyze(rows, _weighted_unit_cost(rows))
+        forecast = self._forecast(self._sales.demand_by_period(), _DEFAULT_HORIZON)
+        return rows, elasticity, forecast
+
+    def _as_api_error(self, exc: AnalyticsError) -> ValidationError:
+        """Map an analytics domain error to a 422 and log it for diagnosability.
+
+        Insufficient-data conditions are an expected client outcome (logged at INFO);
+        any other analytics fault is unexpected and logged at WARNING so it is never
+        silently swallowed.
+        """
+        if isinstance(exc, InsufficientDataError):
+            logger.info("Analytics: insufficient data: %s", exc)
+        else:
+            logger.warning("Analytics computation failed [%s]: %s", type(exc).__name__, exc)
+        return ValidationError(str(exc))
 
 
-def _weighted_unit_cost(rows: list[tuple[int, Decimal, Decimal]]) -> float | None:
+def _weighted_unit_cost(rows: EconomicsRows) -> float | None:
     """COGS-weighted average unit cost across rows, for the dataset-scope profit curve."""
     total_units = sum(quantity for quantity, _price, _cost in rows)
     if total_units <= 0:
@@ -381,7 +530,7 @@ def _weighted_unit_cost(rows: list[tuple[int, Decimal, Decimal]]) -> float | Non
     return float(Decimal(total_cost) / Decimal(total_units))
 
 
-def _average_selling_price(rows: list[tuple[int, Decimal, Decimal]]) -> float | None:
+def _average_selling_price(rows: EconomicsRows) -> float | None:
     """Volume-weighted average selling price (ASP) = revenue / units."""
     total_units = sum(quantity for quantity, _price, _cost in rows)
     if total_units <= 0:

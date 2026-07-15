@@ -6,7 +6,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, Form, UploadFile
 
-from app.api.deps import IngestionServiceDep
+from app.api.deps import IngestionServiceDep, SettingsDep
+from app.core.errors import PayloadTooLargeError
 from app.models.dataset import DatasetKind
 from app.schemas.dataset import (
     DatasetRead,
@@ -31,9 +32,16 @@ router = APIRouter(prefix="/datasets", tags=["datasets"])
 )
 async def upload_dataset(
     service: IngestionServiceDep,
+    settings: SettingsDep,
     file: Annotated[UploadFile, File()],
     kind: Annotated[DatasetKind, Form()] = DatasetKind.PRODUCT_CATALOG,
 ) -> SuccessResponse[DatasetRead]:
+    # Reject oversized uploads from the Content-Length before buffering the whole body in
+    # memory. The service re-checks the actual byte length as a backstop.
+    if file.size is not None and file.size > settings.max_upload_bytes:
+        raise PayloadTooLargeError(
+            f"File exceeds the maximum upload size of {settings.max_upload_bytes} bytes."
+        )
     data = await file.read()
     dataset = service.upload(
         filename=file.filename or "upload",

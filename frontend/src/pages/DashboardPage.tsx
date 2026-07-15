@@ -16,7 +16,8 @@ import { useUiStore } from "@/services/store";
 const OBJECTIVE = "maximize_gross_profit" as const;
 
 export function DashboardPage() {
-  const { scope, scopeLabel } = useUiStore();
+  const scope = useUiStore((s) => s.scope);
+  const scopeLabel = useUiStore((s) => s.scopeLabel);
   const financial = useFinancial(scope);
   const optimization = useOptimization(scope, OBJECTIVE);
   const elasticity = useElasticity(scope);

@@ -44,8 +44,9 @@ def get_db(request: Request) -> Iterator[Session]:
 DbSessionDep = Annotated[Session, Depends(get_db)]
 
 
-def get_health_service(settings: SettingsDep) -> HealthService:
-    return HealthService(settings)
+def get_health_service(settings: SettingsDep, request: Request) -> HealthService:
+    engine = getattr(request.app.state, "db_engine", None)
+    return HealthService(settings, engine)
 
 
 HealthServiceDep = Annotated[HealthService, Depends(get_health_service)]

@@ -2,16 +2,14 @@ import { MetricCard } from "@/components/MetricCard";
 import { SectionHeader } from "@/components/SectionHeader";
 import { Badge } from "@/components/Badge";
 import { useHealth } from "@/services/hooks";
-import { applyTheme, useUiStore } from "@/services/store";
+import { useUiStore } from "@/services/store";
 
 export function SettingsPage() {
-  const { theme, toggleTheme } = useUiStore();
+  const theme = useUiStore((s) => s.theme);
+  const toggleTheme = useUiStore((s) => s.toggleTheme);
   const health = useHealth();
 
-  const onToggle = () => {
-    toggleTheme();
-    applyTheme(theme === "light" ? "dark" : "light");
-  };
+  const onToggle = toggleTheme;
 
   return (
     <div>

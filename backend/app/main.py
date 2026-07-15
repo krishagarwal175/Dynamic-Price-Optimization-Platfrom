@@ -25,10 +25,10 @@ from app.core.middleware import RequestContextMiddleware
 from app.storage.local import LocalFileStorage
 
 API_DESCRIPTION = (
-    "Backend service for the Dynamic Pricing Optimization Platform. "
-    "Provides the infrastructure foundation (configuration, logging, error handling, "
-    "response envelope, persistence, and a health endpoint); business features arrive in "
-    "later milestones."
+    "Backend service for the Dynamic Pricing Optimization Platform. Provides dataset "
+    "ingestion and read-only analytics — financial metrics, price elasticity, demand "
+    "forecasting, pricing optimization, scenario simulation, and reporting — plus a "
+    "catalog API, all behind a versioned REST API with a consistent response envelope."
 )
 
 
@@ -44,21 +44,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # Startup: verify the database is reachable (schema is managed by Alembic, never
-        # created here). Fail fast if it is not.
-        check_connection(engine)
+        # created here). Fail fast — with an explicit error log — if it is not.
+        try:
+            check_connection(engine)
+        except Exception as exc:
+            logger.error("Database connection failed at startup: %s", exc)
+            raise
         logger.info("Database connection verified (%s)", engine.dialect.name)
         yield
         # Shutdown: release pooled connections.
         engine.dispose()
         logger.info("Database engine disposed")
 
+    # Interactive docs and the OpenAPI schema are disabled in production to avoid
+    # disclosing internal API structure; they remain on in local/staging.
+    docs_enabled = not settings.is_production
+
     app = FastAPI(
         title=settings.app_name,
-        version="0.1.0",
+        version="1.0.0",
         description=API_DESCRIPTION,
-        docs_url="/docs",
-        redoc_url="/redoc",
-        openapi_url="/openapi.json",
+        docs_url="/docs" if docs_enabled else None,
+        redoc_url="/redoc" if docs_enabled else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
         lifespan=lifespan,
     )
 
@@ -86,7 +94,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_exception_handlers(app)
     app.include_router(api_router, prefix=settings.api_v1_prefix)
 
-    logger.info("Application initialized (env=%s)", settings.app_env.value)
+    logger.info(
+        "Application initialized (env=%s, log_level=%s, db=%s, max_upload_bytes=%s, docs=%s)",
+        settings.app_env.value,
+        settings.log_level,
+        engine.dialect.name,
+        settings.max_upload_bytes,
+        "on" if docs_enabled else "off",
+    )
     return app
 
 

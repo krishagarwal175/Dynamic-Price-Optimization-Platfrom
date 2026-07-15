@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     # File storage & upload limits (dataset ingestion).
     file_storage_path: str = Field(default="./var/storage")
     max_upload_bytes: int = Field(default=10 * 1024 * 1024)  # 10 MiB
+    # Bound the parsed table to guard against decompression/expansion (a small file can
+    # inflate to an enormous DataFrame, especially .xlsx). Rows beyond this are rejected.
+    max_dataset_rows: int = Field(default=100_000)
     preview_sample_rows: int = Field(default=20)
 
     @field_validator("log_level")
@@ -64,6 +67,22 @@ class Settings(BaseSettings):
         """Allow a comma-separated string (env var) as well as a list."""
         if isinstance(value, str):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
+
+    @field_validator("cors_allowed_origins")
+    @classmethod
+    def _reject_wildcard_with_credentials(cls, value: list[str]) -> list[str]:
+        """Credentialed CORS must use explicit origins.
+
+        The app sends ``allow_credentials=True``; combining that with a ``"*"`` origin is
+        insecure (and rejected by browsers). Fail fast on a misconfiguration rather than
+        silently exposing credentialed cross-origin access.
+        """
+        if "*" in value:
+            raise ValueError(
+                "cors_allowed_origins may not contain '*' because credentialed CORS is "
+                "enabled; list explicit origins instead."
+            )
         return value
 
     @property

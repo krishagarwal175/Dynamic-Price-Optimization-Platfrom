@@ -8,7 +8,8 @@ import { useFinancial } from "@/services/hooks";
 import { useUiStore } from "@/services/store";
 
 export function FinancialPage() {
-  const { scope, scopeLabel } = useUiStore();
+  const scope = useUiStore((s) => s.scope);
+  const scopeLabel = useUiStore((s) => s.scopeLabel);
   const financial = useFinancial(scope);
 
   return (

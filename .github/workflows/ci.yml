@@ -56,12 +56,38 @@ jobs:
       - name: pytest (backend test suite)
         run: pytest
 
-  # Future jobs plug in here without touching the backend job, e.g.:
-  #
-  #   frontend:
-  #     name: Frontend quality gates
-  #     runs-on: ubuntu-latest
-  #     defaults: { run: { working-directory: frontend } }
-  #     steps: [...]
-  #
-  #   build / deploy jobs can declare `needs: [backend, frontend]` to gate on green checks.
+  frontend:
+    name: Frontend quality gates
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # --- Quality gates, run in order; the job stops at the first failure. ---
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript (typecheck)
+        run: npm run typecheck
+
+      - name: Vitest (frontend test suite)
+        run: npm test
+
+      - name: Build (production bundle)
+        run: npm run build
+
+  # build / deploy jobs can declare `needs: [backend, frontend]` to gate on green checks.

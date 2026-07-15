@@ -1,11 +1,12 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, lazy, useEffect } from "react";
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 
 import { LoadingSkeleton } from "@/components/states";
 import { applyTheme, useUiStore } from "@/services/store";
 
 import { AppLayout } from "@/app/AppLayout";
+import { ErrorBoundary } from "@/app/ErrorBoundary";
 import { queryClient } from "@/app/providers";
 
 // Route-level code-splitting keeps the initial bundle small (charts load on demand).
@@ -36,6 +37,9 @@ const ReportsPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import("@/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
 );
+const NotFoundPage = lazy(() =>
+  import("@/pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage })),
+);
 
 function PageFallback() {
   return (
@@ -57,9 +61,11 @@ export function App() {
           <Route element={<AppLayout />}>
             <Route
               element={
-                <Suspense fallback={<PageFallback />}>
-                  <Outlet />
-                </Suspense>
+                <ErrorBoundary>
+                  <Suspense fallback={<PageFallback />}>
+                    <Outlet />
+                  </Suspense>
+                </ErrorBoundary>
               }
             >
               <Route index element={<DashboardPage />} />
@@ -71,7 +77,7 @@ export function App() {
               <Route path="simulation" element={<SimulationPage />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="settings" element={<SettingsPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Route>
         </Routes>

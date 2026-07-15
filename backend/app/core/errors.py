@@ -72,19 +72,28 @@ class PayloadTooLargeError(AppError):
     status_code = HTTP_413_TOO_LARGE
 
 
+# Single source of truth: the code→status mapping is derived from the error classes
+# themselves, so a handler that builds an envelope by code cannot drift from the class.
+_STATUS_BY_CODE: dict[str, int] = {
+    cls.code: cls.status_code
+    for cls in (
+        AppError,
+        NotFoundError,
+        ValidationError,
+        ConflictError,
+        UnsupportedMediaTypeError,
+        PayloadTooLargeError,
+    )
+}
+
+
 def _envelope(code: str, message: str, details: list[ErrorDetail] | None) -> JSONResponse:
     body = ErrorResponse(
         error=ErrorBody(code=code, message=message, details=details),
         meta=Meta(request_id=get_request_id()),
     )
-    status_by_code = {
-        "NOT_FOUND": HTTP_404_NOT_FOUND,
-        "VALIDATION_ERROR": HTTP_422_UNPROCESSABLE,
-        "CONFLICT": HTTP_409_CONFLICT,
-        "INTERNAL_ERROR": HTTP_500_INTERNAL,
-    }
     return JSONResponse(
-        status_code=status_by_code.get(code, HTTP_500_INTERNAL),
+        status_code=_STATUS_BY_CODE.get(code, HTTP_500_INTERNAL),
         content=jsonable_encoder(body, by_alias=True),
     )
 

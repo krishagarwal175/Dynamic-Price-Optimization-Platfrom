@@ -27,7 +27,7 @@ from app.core.errors import (
 )
 from app.core.logging import get_logger
 from app.ingestion.catalog import ImportSummary
-from app.ingestion.errors import UnsupportedFileTypeError
+from app.ingestion.errors import ParsingError, UnsupportedFileTypeError
 from app.ingestion.parsing import detect_format, parse
 from app.ingestion.preview import DatasetPreview, build_preview
 from app.ingestion.registry import get_importer, get_schema
@@ -158,7 +158,26 @@ class IngestionService:
 
     def _load_dataframe(self, dataset: Dataset) -> pd.DataFrame:
         data = self._storage.read(dataset.storage_key)
-        return parse(dataset.original_filename, dataset.content_type or None, data)
+        max_rows = self._settings.max_dataset_rows
+        try:
+            df = parse(
+                dataset.original_filename,
+                dataset.content_type or None,
+                data,
+                max_rows=max_rows,
+            )
+        except UnsupportedFileTypeError as exc:
+            raise UnsupportedMediaTypeError(str(exc)) from exc
+        except ParsingError as exc:
+            # A malformed-but-typed file is a client/data problem (422), not a server
+            # fault. Log the real cause; return a generic, non-leaky message.
+            logger.warning("Dataset parse failed (id=%s): %s", dataset.id, exc)
+            raise ValidationError(
+                "The uploaded file could not be parsed as a valid CSV or Excel dataset."
+            ) from exc
+        if len(df) > max_rows:
+            raise PayloadTooLargeError(f"Dataset exceeds the maximum of {max_rows} rows.")
+        return df
 
     def _mark_failed(self, dataset: Dataset, summary: str) -> None:
         with transaction(self._session):

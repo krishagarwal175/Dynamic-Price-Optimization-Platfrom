@@ -6,11 +6,44 @@ A platform for data-driven price optimization: it models demand elasticity, runs
 pricing scenarios, and recommends revenue- or margin-optimal prices across a product
 catalog.
 
-> **Status:** Architecture frozen. Application implementation has not yet begun.
-> This repository contains the engineering scaffold, the frozen architecture blueprint
-> ([`docs/architecture/overview.md`](docs/architecture/overview.md) and
-> [`docs/adr/`](docs/adr/)), and the documentation contract that all future work follows.
-> Structural changes to the architecture require a new ADR.
+> **Status:** Version 1 — feature-complete and hardened. The backend provides a
+> persistence layer, dataset ingestion, five pure deterministic analytics engines
+> (financial metrics, price elasticity, demand forecasting, pricing optimization, scenario
+> simulation), a reporting/export engine, and a catalog API — all behind a versioned REST
+> API with a consistent response envelope. The frontend is a read-only React console over
+> that API. Architecture is frozen; structural changes require a new ADR
+> ([`docs/architecture/overview.md`](docs/architecture/overview.md), [`docs/adr/`](docs/adr/)).
+
+---
+
+## Quickstart
+
+Prerequisites: **Python 3.11** and **Node 20**. The backend and frontend run as two
+processes; the frontend dev server proxies `/api` to the backend on port 8000.
+
+```bash
+# Backend (terminal 1) — http://127.0.0.1:8000  (docs at /docs)
+cd backend
+python -m venv .venv && . .venv/Scripts/activate   # macOS/Linux: source .venv/bin/activate
+pip install -e ".[dev]"
+uvicorn app.main:app --reload
+
+# Frontend (terminal 2) — http://localhost:5173
+cd frontend
+npm install
+npm run dev
+```
+
+A root [`Makefile`](Makefile) wraps both stacks so local commands match CI exactly:
+
+```bash
+make install      # backend deps + npm ci
+make lint         # ruff + eslint
+make typecheck    # mypy (strict) + tsc
+make test         # pytest + vitest
+make build        # frontend production build
+make check        # everything above, the full local gate
+```
 
 ---
 

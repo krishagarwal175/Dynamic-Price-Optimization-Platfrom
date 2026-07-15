@@ -8,7 +8,8 @@ import { useForecast } from "@/services/hooks";
 import { useUiStore } from "@/services/store";
 
 export function ForecastPage() {
-  const { scope, scopeLabel } = useUiStore();
+  const scope = useUiStore((s) => s.scope);
+  const scopeLabel = useUiStore((s) => s.scopeLabel);
   const forecast = useForecast(scope, 6);
 
   return (

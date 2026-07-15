@@ -15,7 +15,8 @@ import type { Objective, ScenarioResult } from "@/services/types";
 type Kind = "default" | "percentage_increase" | "percentage_decrease" | "fixed_price" | "recommended";
 
 export function SimulationPage() {
-  const { scope, scopeLabel } = useUiStore();
+  const scope = useUiStore((s) => s.scope);
+  const scopeLabel = useUiStore((s) => s.scopeLabel);
   const [objective] = useState<Objective>("maximize_gross_profit");
   const [kind, setKind] = useState<Kind>("default");
   const [percent, setPercent] = useState(10);

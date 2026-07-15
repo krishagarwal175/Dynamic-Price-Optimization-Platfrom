@@ -47,8 +47,9 @@ class ProductRepository(BaseRepository[Product]):
         filters = []
         if category_id is not None:
             filters.append(Product.category_id == category_id)
-        if query:
-            like = f"%{query.strip()}%"
+        term = query.strip() if query else ""
+        if term:
+            like = f"%{term}%"
             filters.append(Product.sku.ilike(like) | Product.name.ilike(like))
 
         base = select(Product)

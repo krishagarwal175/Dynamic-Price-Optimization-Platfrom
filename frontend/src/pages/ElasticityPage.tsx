@@ -9,7 +9,8 @@ import { useElasticity } from "@/services/hooks";
 import { useUiStore } from "@/services/store";
 
 export function ElasticityPage() {
-  const { scope, scopeLabel } = useUiStore();
+  const scope = useUiStore((s) => s.scope);
+  const scopeLabel = useUiStore((s) => s.scopeLabel);
   const elasticity = useElasticity(scope);
 
   return (

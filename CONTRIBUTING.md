@@ -20,6 +20,19 @@ Planning → Architecture Review → Implementation → Testing →
 Documentation → Vault Sync → Git Commit → Push → Completion
 ```
 
+## Local development
+
+Two processes run side by side (the frontend dev server proxies `/api` to the backend):
+
+| Stack | Directory | Setup | Run | Quality gate |
+|-------|-----------|-------|-----|--------------|
+| Backend | `backend/` | `pip install -e ".[dev]"` | `uvicorn app.main:app --reload` | `ruff check .` · `black --check .` · `mypy app` · `pytest` |
+| Frontend | `frontend/` | `npm install` | `npm run dev` | `npm run lint` · `npm run typecheck` · `npm test` · `npm run build` |
+
+A root [`Makefile`](Makefile) wraps both stacks (`make install`, `make lint`, `make typecheck`,
+`make test`, `make build`, `make check`) so local commands match the CI jobs exactly. CI runs
+the backend and frontend gates as two independent jobs (`.github/workflows/ci.yml`).
+
 ## Commit conventions
 
 - Format: `type: short imperative summary` (Conventional Commits).

@@ -65,7 +65,7 @@ class ProductCatalogImporter:
 
         cache: dict[str, Category] = {}
         categories_created = 0
-        products_created = 0
+        new_products: list[Product] = []
 
         records = df.where(pd.notna(df), None).to_dict(orient="records")
         for record in records:
@@ -74,12 +74,14 @@ class ProductCatalogImporter:
             if category is None:
                 category = categories.get_by_name(category_name)
                 if category is None:
+                    # Flush new categories eagerly so their FK ids are available; there
+                    # are only as many as there are distinct categories (deduped here).
                     category = categories.add(Category(name=category_name))
                     categories_created += 1
                 cache[category_name] = category
 
             currency = _clean(record.get("currency")) or "USD"
-            products.add(
+            new_products.append(
                 Product(
                     category_id=category.id,
                     sku=_clean(record.get("sku")) or "",
@@ -90,10 +92,12 @@ class ProductCatalogImporter:
                     currency=currency,
                 )
             )
-            products_created += 1
+
+        # One flush for all product rows instead of one per row.
+        products.add_all(new_products)
 
         return ImportSummary(
             rows_imported=len(records),
             categories_created=categories_created,
-            products_created=products_created,
+            products_created=len(new_products),
         )

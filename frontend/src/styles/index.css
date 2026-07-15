@@ -9,6 +9,10 @@
     height: 100%;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-neutral-50 text-neutral-800 antialiased dark:bg-neutral-950 dark:text-neutral-200;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
@@ -16,6 +20,19 @@
 
   :focus-visible {
     @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-neutral-50 dark:ring-offset-neutral-950;
+  }
+
+  /* Accessibility: collapse all motion for users who ask for it. Framer Motion honors this
+     via <MotionConfig reducedMotion="user">; this covers CSS transitions/animations too. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
@@ -25,7 +42,13 @@
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:ring-2;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition duration-150 ease-out focus-visible:ring-2 active:scale-[0.98];
+  }
+
+  /* Interactive surface: a subtle lift + shadow on hover. Apply only to elements that are
+     actually clickable/hoverable so motion signals affordance, not decoration. */
+  .interactive {
+    @apply transition duration-200 ease-out hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md dark:hover:border-neutral-700;
   }
 
   .btn-primary {
@@ -37,6 +60,80 @@
   }
 
   .input {
-    @apply w-full rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus-visible:border-accent dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100;
+    @apply w-full rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 placeholder:text-neutral-400 transition-colors focus-visible:border-accent dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100;
+  }
+}
+
+@layer utilities {
+  /* Ambient engineering grid behind the app (see AmbientBackground). Fixed, non-interactive,
+     faint, edge-masked, and drifting very slowly. AppLayout sits above it via a stacking context. */
+  .ambient-grid {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, rgba(100, 116, 139, 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(100, 116, 139, 0.06) 1px, transparent 1px);
+    background-size: 56px 56px;
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 78%);
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 78%);
+    animation: grid-drift 60s linear infinite;
+  }
+  .dark .ambient-grid {
+    background-image:
+      linear-gradient(to right, rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+  }
+
+  @keyframes grid-drift {
+    from {
+      background-position:
+        0 0,
+        0 0;
+    }
+    to {
+      background-position:
+        56px 56px,
+        56px 56px;
+    }
+  }
+
+  /* A quiet "live" heartbeat for the system-status indicator. */
+  .pl-live {
+    animation: pl-live 2.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  }
+  @keyframes pl-live {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+    }
+    50% {
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0);
+    }
+  }
+
+  /* Sheen sweep for loading skeletons — reads as "fetching", calmer than a hard pulse. */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.06),
+      transparent
+    );
+    animation: shimmer 1.6s var(--pl-ease, cubic-bezier(0.16, 1, 0.3, 1)) infinite;
+  }
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
   }
 }

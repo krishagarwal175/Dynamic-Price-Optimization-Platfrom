@@ -1,6 +1,9 @@
-/** Thin, theme-consistent wrappers over Recharts. Charts stay simple (no animations).
+/** Thin, theme-consistent wrappers over Recharts.
  *  Recharts takes explicit color strings (not CSS classes), so colors are resolved from
- *  the active theme here to keep charts legible in both light and dark mode. */
+ *  the active theme here to keep charts legible in both light and dark mode. Series draw in
+ *  once on mount (line sweep / bar grow) to signal "just computed"; the forecast band and
+ *  everything under reduced motion render instantly so the data is never withheld. */
+import { useReducedMotion } from "framer-motion";
 import {
   Area,
   Bar,
@@ -17,6 +20,8 @@ import {
 import { useUiStore } from "@/services/store";
 
 export const CHART_COLORS = ["#4f46e5", "#059669", "#d97706", "#6b7280", "#db2777"];
+
+const DRAW_MS = 700;
 
 interface Series {
   key: string;
@@ -80,6 +85,7 @@ export function LineSeriesChart<T extends object>({
   band?: { lower: string; upper: string; color?: string };
 }) {
   const t = useChartTheme();
+  const reduce = useReducedMotion();
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 4 }}>
@@ -116,7 +122,9 @@ export function LineSeriesChart<T extends object>({
             stroke={s.color ?? CHART_COLORS[i % CHART_COLORS.length]}
             strokeWidth={2}
             dot={false}
-            isAnimationActive={false}
+            isAnimationActive={!reduce}
+            animationDuration={DRAW_MS}
+            animationEasing="ease-out"
           />
         ))}
       </ComposedChart>
@@ -134,6 +142,7 @@ export function BarSeriesChart<T extends object>({
   series: Series[];
 }) {
   const t = useChartTheme();
+  const reduce = useReducedMotion();
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 4 }}>
@@ -148,7 +157,9 @@ export function BarSeriesChart<T extends object>({
             name={s.name}
             fill={s.color ?? CHART_COLORS[i % CHART_COLORS.length]}
             radius={[4, 4, 0, 0]}
-            isAnimationActive={false}
+            isAnimationActive={!reduce}
+            animationDuration={DRAW_MS}
+            animationEasing="ease-out"
           />
         ))}
       </BarChart>

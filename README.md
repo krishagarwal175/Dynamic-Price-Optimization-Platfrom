@@ -47,6 +47,38 @@ make check        # everything above, the full local gate
 
 ---
 
+## Deployment (Vercel)
+
+The frontend is a static SPA and deploys to Vercel; the FastAPI backend is hosted
+separately (Render / Railway / Fly / a VM). The two connect via one environment variable.
+
+**Frontend → Vercel**
+
+1. Import the GitHub repo in Vercel and set **Root Directory = `frontend`** (build config
+   lives in [`frontend/vercel.json`](frontend/vercel.json): framework `vite`, output `dist`,
+   SPA rewrite so deep links resolve).
+2. Add an environment variable **`VITE_API_BASE_URL`** = your backend origin, e.g.
+   `https://api.your-host.com` (the client appends `/api/v1`). See
+   [`frontend/.env.example`](frontend/.env.example).
+3. Deploy. Every push to `main` redeploys automatically.
+
+   CLI alternative: `cd frontend && npx vercel --prod` (prompts for login the first time).
+
+**Backend → any host**
+
+Run the published container/app and set its config:
+
+- `DATABASE_URL` — a PostgreSQL URL (SQLite is dev-only).
+- `APP_ENV=production` — disables interactive docs.
+- `CORS_ALLOWED_ORIGINS` — must include the Vercel origin, e.g.
+  `https://your-app.vercel.app` (comma-separated; a `*` wildcard is rejected while
+  credentials are enabled).
+
+**Local development is unaffected:** with `VITE_API_BASE_URL` empty, the client uses
+`/api/v1` and the Vite dev server proxies it to `http://127.0.0.1:8000`.
+
+---
+
 ## What this project is
 
 | Layer | Responsibility |

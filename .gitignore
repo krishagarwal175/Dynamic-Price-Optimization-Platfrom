@@ -50,3 +50,6 @@ backend/var/
 # ---------- Sibling engineering vault (never tracked) ----------
 ../vault4/
 vault4/
+
+# ---------- Vercel ----------
+.vercel

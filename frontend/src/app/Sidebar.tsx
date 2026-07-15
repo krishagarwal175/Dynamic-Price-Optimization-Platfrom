@@ -1,3 +1,8 @@
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState } from "react";
+
+import { DUR, EASE } from "@/lib/motion";
+
 import { NavList } from "@/app/NavList";
 
 function Brand() {
@@ -14,33 +19,76 @@ function Brand() {
   );
 }
 
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+/** Live system-status footer: a running clock signals the console is connected and current,
+ *  reinforcing the "operational platform" feel without adding any product surface. */
+function SystemStatus() {
+  const [time, setTime] = useState("--:--:--");
+  useEffect(() => {
+    const tick = () => {
+      const d = new Date();
+      setTime(`${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`);
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  return (
+    <div className="border-t border-neutral-200 p-4 dark:border-neutral-800">
+      <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.12em] text-neutral-400">
+        <span className="flex items-center gap-2">
+          <span className="pl-live inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          System online
+        </span>
+        <span className="tabular-nums">{time} UTC</span>
+      </div>
+      <p className="mt-1.5 text-[10.5px] text-neutral-400">Deterministic · read-only</p>
+    </div>
+  );
+}
+
 export function Sidebar() {
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 lg:flex">
       <Brand />
-      <NavList />
-      <div className="border-t border-neutral-200 p-4 text-[11px] text-neutral-400 dark:border-neutral-800">
-        Deterministic analytics · read-only
-      </div>
+      <NavList idPrefix="sidebar" />
+      <SystemStatus />
     </aside>
   );
 }
 
-/** Off-canvas navigation for viewports below `lg` (the sidebar is hidden there). */
+/** Off-canvas navigation for viewports below `lg` (the sidebar is hidden there). Slides in
+ *  from the edge and fades its scrim; exits reverse so dismissal feels physical. */
 export function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
-      <button
-        type="button"
-        aria-label="Close menu"
-        className="absolute inset-0 bg-neutral-900/40"
-        onClick={onClose}
-      />
-      <div className="absolute left-0 top-0 flex h-full w-64 flex-col border-r border-neutral-200 bg-white shadow-xl dark:border-neutral-800 dark:bg-neutral-900">
-        <Brand />
-        <NavList onNavigate={onClose} />
-      </div>
-    </div>
+    <AnimatePresence>
+      {open ? (
+        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+          <motion.button
+            type="button"
+            aria-label="Close menu"
+            className="absolute inset-0 bg-neutral-900/40 backdrop-blur-[1px]"
+            onClick={onClose}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: DUR.fast }}
+          />
+          <motion.div
+            className="absolute left-0 top-0 flex h-full w-64 flex-col border-r border-neutral-200 bg-white shadow-xl dark:border-neutral-800 dark:bg-neutral-900"
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ duration: DUR.base, ease: EASE }}
+          >
+            <Brand />
+            <NavList idPrefix="mobile" onNavigate={onClose} />
+          </motion.div>
+        </div>
+      ) : null}
+    </AnimatePresence>
   );
 }

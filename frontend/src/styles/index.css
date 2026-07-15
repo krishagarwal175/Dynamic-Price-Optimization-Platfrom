@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-neutral-50 text-neutral-800 antialiased dark:bg-neutral-950 dark:text-neutral-200;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-neutral-50 dark:ring-offset-neutral-950;
+  }
+}
+
+@layer components {
+  .surface {
+    @apply rounded-xl border border-neutral-200 bg-white shadow-card dark:border-neutral-800 dark:bg-neutral-900;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:ring-2;
+  }
+
+  .btn-primary {
+    @apply btn bg-accent text-accent-fg hover:bg-indigo-600;
+  }
+
+  .btn-ghost {
+    @apply btn border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus-visible:border-accent dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100;
+  }
+}

@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.config import Settings, get_settings
 from app.core.database import session_scope
 from app.services.analytics import AnalyticsService
+from app.services.catalog import CatalogService
 from app.services.health import HealthService
 from app.services.ingestion import IngestionService
 from app.storage.base import FileStorage
@@ -68,3 +69,10 @@ def get_analytics_service(session: DbSessionDep) -> AnalyticsService:
 
 
 AnalyticsServiceDep = Annotated[AnalyticsService, Depends(get_analytics_service)]
+
+
+def get_catalog_service(session: DbSessionDep) -> CatalogService:
+    return CatalogService(session)
+
+
+CatalogServiceDep = Annotated[CatalogService, Depends(get_catalog_service)]

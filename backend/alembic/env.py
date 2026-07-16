@@ -16,7 +16,7 @@ from sqlalchemy import engine_from_config, pool
 # autogenerate.
 import app.models  # noqa: F401  (imported for registration side-effect)
 from app.core.config import get_settings
-from app.core.database import Base
+from app.core.database import Base, _normalize_url
 
 config = context.config
 
@@ -25,7 +25,10 @@ if config.config_file_name is not None:
 
 # Resolve the URL: an explicitly-set option (e.g. from tests) wins; otherwise settings.
 if not config.get_main_option("sqlalchemy.url"):
-    config.set_main_option("sqlalchemy.url", get_settings().database_url)
+    url = _normalize_url(get_settings().database_url)
+    # Escape '%' so ConfigParser interpolation doesn't choke on URL-encoded passwords
+    # (e.g. a '@' in a Postgres password is encoded as '%40').
+    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
 
 target_metadata = Base.metadata
 

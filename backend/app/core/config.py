@@ -9,9 +9,10 @@ from __future__ import annotations
 
 from enum import Enum
 from functools import lru_cache
+from typing import Annotated
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class AppEnv(str, Enum):
@@ -36,7 +37,12 @@ class Settings(BaseSettings):
     app_name: str = Field(default="Dynamic Pricing Optimization Platform API")
     api_v1_prefix: str = Field(default="/api/v1")
     log_level: str = Field(default="INFO")
-    cors_allowed_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    # NoDecode: don't let pydantic-settings JSON-parse this list from the env var; the
+    # ``_split_origins`` validator below accepts a plain comma-separated string instead
+    # (e.g. CORS_ALLOWED_ORIGINS="https://a.example,https://b.example").
+    cors_allowed_origins: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["http://localhost:5173"]
+    )
 
     # Persistence. A SQLAlchemy URL; the provider is swappable via configuration alone
     # (SQLite locally / in tests, PostgreSQL in deployment). See

@@ -47,10 +47,33 @@ make check        # everything above, the full local gate
 
 ---
 
-## Deployment (Vercel)
+## Deployment
 
-The frontend is a static SPA and deploys to Vercel; the FastAPI backend is hosted
-separately (Render / Railway / Fly / a VM). The two connect via one environment variable.
+The frontend is a static SPA (Vercel); the FastAPI backend is hosted separately. The two
+connect via one environment variable (`VITE_API_BASE_URL`).
+
+### Free tier, no credit card
+
+Render / Railway / Fly now require a card even for free instances. For a **truly free,
+no-card** deployment, host the backend on **Hugging Face Spaces (Docker)** — the console is
+read-only and the backend seeds itself on boot, so SQLite in the container is enough (no
+paid database needed; data regenerates on restart).
+
+**Backend → Hugging Face Space** ([`deploy/huggingface/`](deploy/huggingface/)):
+1. huggingface.co → sign up (free, no card) → **New → Space** → SDK **Docker** (blank).
+2. Add the two files from [`deploy/huggingface/`](deploy/huggingface/) to the Space
+   (`Dockerfile` + `README.md`) — they clone the backend from GitHub and run it on SQLite
+   with the demo seed. The Space builds and starts automatically.
+3. Space **Settings → Variables and secrets** → add `CORS_ALLOWED_ORIGINS` = your Vercel URL.
+4. Your API URL is `https://<user>-<space>.hf.space` (health at `/api/v1/health`).
+
+**Frontend → Vercel** (Hobby tier is free, no card): import the repo, Root Directory
+`frontend`, set `VITE_API_BASE_URL` to the Space URL, deploy.
+
+> Note: a free Space sleeps after ~48h idle and cold-starts in ~30s (the boot animation
+> masks it); SQLite data resets if the Space restarts — fine for a showcase.
+
+### Managed (Render blueprint, requires a card on file)
 
 **Frontend → Vercel**
 

@@ -21,10 +21,8 @@ export function NavList({ onNavigate, idPrefix = "nav" }: { onNavigate?: () => v
           onClick={onNavigate}
           className={({ isActive }) =>
             cn(
-              "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              isActive
-                ? "text-accent dark:text-indigo-300"
-                : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800",
+              "relative flex items-center gap-3 px-3 py-2 text-sm font-medium transition-colors",
+              isActive ? "text-accent" : "text-neutral-400 hover:bg-ink-2 hover:text-white",
             )
           }
         >
@@ -33,11 +31,11 @@ export function NavList({ onNavigate, idPrefix = "nav" }: { onNavigate?: () => v
               {isActive ? (
                 <motion.span
                   layoutId={`${idPrefix}-active`}
-                  className="absolute inset-0 -z-10 rounded-lg bg-accent-muted dark:bg-indigo-950/50"
+                  className="absolute inset-0 -z-10 border-l-2 border-accent bg-accent-muted"
                   transition={{ duration: 0.28, ease: EASE }}
                 />
               ) : null}
-              <span className={cn("transition-colors", isActive ? "text-accent dark:text-indigo-300" : "text-neutral-400")}>
+              <span className={cn("transition-colors", isActive ? "text-accent" : "text-neutral-500")}>
                 {item.icon}
               </span>
               {item.label}

@@ -5,7 +5,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import { LoadingSkeleton } from "@/components/states";
 import { EASE } from "@/lib/motion";
-import { applyTheme, useUiStore } from "@/services/store";
+import { applyTheme } from "@/services/store";
 
 import { AppLayout } from "@/app/AppLayout";
 import { Boot } from "@/app/BootSequence";
@@ -55,8 +55,7 @@ function PageFallback() {
 }
 
 export function App() {
-  const theme = useUiStore((s) => s.theme);
-  useEffect(() => applyTheme(theme), [theme]);
+  useEffect(() => applyTheme(), []);
 
   // Boot sequence plays once per browser session; navigations and refetches don't replay it.
   const [booting, setBooting] = useState(() => {

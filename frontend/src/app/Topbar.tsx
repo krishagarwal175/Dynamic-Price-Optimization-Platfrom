@@ -5,8 +5,6 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const scope = useUiStore((s) => s.scope);
   const scopeLabel = useUiStore((s) => s.scopeLabel);
   const setScope = useUiStore((s) => s.setScope);
-  const theme = useUiStore((s) => s.theme);
-  const toggleTheme = useUiStore((s) => s.toggleTheme);
   const products = useProducts({ limit: 200 });
 
   const onScopeChange = (value: string) => {
@@ -20,8 +18,8 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   };
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-neutral-200 bg-white/80 px-4 backdrop-blur dark:border-neutral-800 dark:bg-neutral-900/80 sm:px-6">
-      <div className="flex items-center gap-2">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line bg-ink-0/80 px-4 backdrop-blur sm:px-6">
+      <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onMenuClick}
@@ -30,12 +28,12 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
         >
           ☰
         </button>
-        <label htmlFor="scope" className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+        <label htmlFor="scope" className="eyebrow hidden sm:block">
           Scope
         </label>
         <select
           id="scope"
-          className="input max-w-[280px]"
+          className="input max-w-[280px] font-mono text-xs"
           value={scope === "dataset" ? "dataset" : String(scope)}
           onChange={(e) => onScopeChange(e.target.value)}
         >
@@ -48,16 +46,11 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
         </select>
       </div>
 
-      <div className="flex items-center gap-3">
-        <span className="hidden text-xs text-neutral-400 sm:inline">{scopeLabel}</span>
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="btn-ghost"
-          aria-label="Toggle color theme"
-        >
-          {theme === "light" ? "Dark" : "Light"}
-        </button>
+      <div className="flex items-center gap-2">
+        <span className="hidden font-mono text-[11px] uppercase tracking-wider text-neutral-500 md:inline">
+          {scopeLabel}
+        </span>
+        <span className="pl-live inline-block h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
       </div>
     </header>
   );

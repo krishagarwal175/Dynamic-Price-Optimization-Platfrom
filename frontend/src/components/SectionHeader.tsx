@@ -10,13 +10,13 @@ export function SectionHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-lg font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <div className="min-w-0">
+        <h1 className="font-display text-3xl uppercase leading-none tracking-tightest text-white sm:text-4xl">
           {title}
         </h1>
         {description ? (
-          <p className="mt-0.5 text-sm text-neutral-500 dark:text-neutral-400">{description}</p>
+          <p className="mt-2 max-w-2xl text-sm text-neutral-400">{description}</p>
         ) : null}
       </div>
       {actions ? <div className="flex items-center gap-2">{actions}</div> : null}

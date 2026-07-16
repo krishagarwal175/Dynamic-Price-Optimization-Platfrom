@@ -1,3 +1,4 @@
+import { cn } from "@/lib/cn";
 import { formatCurrency, formatNumber } from "@/lib/format";
 
 import { Badge } from "@/components/Badge";
@@ -13,16 +14,14 @@ export function RecommendationCard({ result }: { result: OptimizationResult }) {
   const improved = result.improvement > 0;
 
   return (
-    <div className="surface border-l-4 border-l-accent p-5">
+    <div className="surface border-l-2 border-l-accent p-5">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-          Recommended action
-        </p>
+        <p className="eyebrow">Recommended action</p>
         <Badge tone={improved ? "positive" : "neutral"}>
           {improved ? "Uplift available" : "Already optimal"}
         </Badge>
       </div>
-      <p className="mt-2 text-xl font-semibold text-neutral-900 dark:text-neutral-50">{action}</p>
+      <p className="mt-2 font-display text-2xl uppercase tracking-tight text-white">{action}</p>
       <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <Stat label="Current" value={formatCurrency(result.baseline_price)} />
         <Stat label="Recommended" value={formatCurrency(result.recommended_price)} />
@@ -36,14 +35,8 @@ export function RecommendationCard({ result }: { result: OptimizationResult }) {
 function Stat({ label, value, tone }: { label: string; value: string; tone?: "pos" }) {
   return (
     <div>
-      <p className="text-xs text-neutral-500 dark:text-neutral-400">{label}</p>
-      <p
-        className={
-          tone === "pos"
-            ? "font-semibold text-emerald-600 dark:text-emerald-400"
-            : "font-semibold text-neutral-800 dark:text-neutral-100"
-        }
-      >
+      <p className="font-mono text-[10px] uppercase tracking-wider text-neutral-500">{label}</p>
+      <p className={cn("mt-0.5 font-semibold tabular-nums", tone === "pos" ? "text-accent" : "text-white")}>
         {value}
       </p>
     </div>

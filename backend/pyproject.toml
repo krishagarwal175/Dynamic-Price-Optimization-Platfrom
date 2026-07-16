@@ -24,6 +24,10 @@ dev = [
     "black>=24.4",
     "mypy>=1.10",
 ]
+# Production-only: the PostgreSQL driver. Dev/tests use SQLite and don't need it.
+prod = [
+    "psycopg2-binary>=2.9",
+]
 
 [build-system]
 requires = ["setuptools>=68"]

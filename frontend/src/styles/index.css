@@ -11,19 +11,25 @@
 
   html {
     scroll-behavior: smooth;
+    color-scheme: dark;
   }
 
   body {
-    @apply bg-neutral-50 text-neutral-800 antialiased dark:bg-neutral-950 dark:text-neutral-200;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    @apply bg-ink-0 font-sans text-neutral-200 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
   }
 
+  /* Neon focus ring on a black ground. */
   :focus-visible {
-    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-neutral-50 dark:ring-offset-neutral-950;
+    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-ink-0;
   }
 
-  /* Accessibility: collapse all motion for users who ask for it. Framer Motion honors this
-     via <MotionConfig reducedMotion="user">; this covers CSS transitions/animations too. */
+  ::selection {
+    @apply bg-accent text-accent-fg;
+  }
+
+  /* Accessibility: collapse all motion for users who ask for it (framer-motion also honors
+     this via <MotionConfig reducedMotion="user">). */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -37,53 +43,53 @@
 }
 
 @layer components {
+  /* Brutalist surface: hairline border, dark ink, sharp corners, no soft shadow. */
   .surface {
-    @apply rounded-xl border border-neutral-200 bg-white shadow-card dark:border-neutral-800 dark:bg-neutral-900;
+    @apply border border-line bg-ink-1;
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition duration-150 ease-out focus-visible:ring-2 active:scale-[0.98];
-  }
-
-  /* Interactive surface: a subtle lift + shadow on hover. Apply only to elements that are
-     actually clickable/hoverable so motion signals affordance, not decoration. */
-  .interactive {
-    @apply transition duration-200 ease-out hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md dark:hover:border-neutral-700;
+    @apply inline-flex items-center justify-center gap-2 rounded-none px-3.5 py-1.5 font-mono text-xs uppercase tracking-wider transition duration-150 ease-out focus-visible:ring-2 active:scale-[0.98];
   }
 
   .btn-primary {
-    @apply btn bg-accent text-accent-fg hover:bg-indigo-600;
+    @apply btn bg-accent font-semibold text-accent-fg hover:shadow-glow;
   }
 
   .btn-ghost {
-    @apply btn border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800;
+    @apply btn border border-line-strong bg-ink-1 text-neutral-300 hover:border-neutral-500 hover:bg-ink-3 hover:text-white;
   }
 
   .input {
-    @apply w-full rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 placeholder:text-neutral-400 transition-colors focus-visible:border-accent dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100;
+    @apply w-full rounded-none border border-line bg-ink-1 px-3 py-1.5 text-sm text-neutral-100 transition-colors placeholder:text-neutral-600 focus-visible:border-accent;
+  }
+
+  /* Interactive surface: green hairline + lift on hover; only for hoverable elements. */
+  .interactive {
+    @apply transition duration-200 ease-out hover:-translate-y-0.5 hover:border-neutral-600;
+  }
+
+  /* Monospace technical eyebrow / label. */
+  .eyebrow {
+    @apply font-mono text-[10.5px] uppercase tracking-[0.16em] text-neutral-500;
   }
 }
 
 @layer utilities {
   /* Ambient engineering grid behind the app (see AmbientBackground). Fixed, non-interactive,
-     faint, edge-masked, and drifting very slowly. AppLayout sits above it via a stacking context. */
+     faint, edge-masked, drifting very slowly. AppLayout sits above it via a stacking context. */
   .ambient-grid {
     position: fixed;
     inset: 0;
     z-index: 0;
     pointer-events: none;
     background-image:
-      linear-gradient(to right, rgba(100, 116, 139, 0.06) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(100, 116, 139, 0.06) 1px, transparent 1px);
+      linear-gradient(to right, rgba(200, 255, 0, 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(200, 255, 0, 0.035) 1px, transparent 1px);
     background-size: 56px 56px;
-    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 78%);
-    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 78%);
+    -webkit-mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 0%, transparent 80%);
+    mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 0%, transparent 80%);
     animation: grid-drift 60s linear infinite;
-  }
-  .dark .ambient-grid {
-    background-image:
-      linear-gradient(to right, rgba(148, 163, 184, 0.07) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
   }
 
   @keyframes grid-drift {
@@ -106,10 +112,10 @@
   @keyframes pl-live {
     0%,
     100% {
-      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+      box-shadow: 0 0 0 0 rgba(200, 255, 0, 0.5);
     }
     50% {
-      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0);
+      box-shadow: 0 0 0 4px rgba(200, 255, 0, 0);
     }
   }
 
@@ -123,13 +129,8 @@
     position: absolute;
     inset: 0;
     transform: translateX(-100%);
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.06),
-      transparent
-    );
-    animation: shimmer 1.6s var(--pl-ease, cubic-bezier(0.16, 1, 0.3, 1)) infinite;
+    background: linear-gradient(90deg, transparent, rgba(200, 255, 0, 0.06), transparent);
+    animation: shimmer 1.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
   }
   @keyframes shimmer {
     100% {

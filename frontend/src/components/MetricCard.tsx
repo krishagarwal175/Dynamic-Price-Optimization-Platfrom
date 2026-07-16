@@ -15,21 +15,19 @@ interface Props {
 }
 
 const TONE: Record<NonNullable<Props["tone"]>, string> = {
-  default: "text-neutral-900 dark:text-neutral-50",
-  positive: "text-emerald-600 dark:text-emerald-400",
-  negative: "text-red-600 dark:text-red-400",
+  default: "text-white",
+  positive: "text-accent",
+  negative: "text-signal",
 };
 
 export function MetricCard({ label, value, numeric, sublabel, tone = "default", loading }: Props) {
   return (
     <div className="surface p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-        {label}
-      </p>
+      <p className="eyebrow">{label}</p>
       {loading ? (
-        <LoadingSkeleton className="mt-2 h-7 w-24" />
+        <LoadingSkeleton className="mt-2 h-8 w-24" />
       ) : (
-        <p className={cn("mt-1 text-2xl font-semibold tabular-nums", TONE[tone])}>
+        <p className={cn("mt-1.5 font-display text-3xl tracking-tightest tabular-nums", TONE[tone])}>
           {numeric ? (
             <AnimatedNumber value={numeric.value} format={numeric.format} from={numeric.from} />
           ) : (
@@ -38,7 +36,9 @@ export function MetricCard({ label, value, numeric, sublabel, tone = "default", 
         </p>
       )}
       {sublabel && !loading ? (
-        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">{sublabel}</p>
+        <p className="mt-1 font-mono text-[11px] uppercase tracking-wider text-neutral-500">
+          {sublabel}
+        </p>
       ) : null}
     </div>
   );

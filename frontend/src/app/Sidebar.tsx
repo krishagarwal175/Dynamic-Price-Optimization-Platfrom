@@ -7,13 +7,15 @@ import { NavList } from "@/app/NavList";
 
 function Brand() {
   return (
-    <div className="flex h-14 items-center gap-2 px-5">
-      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-accent text-sm font-bold text-accent-fg">
+    <div className="flex h-14 items-center gap-2.5 border-b border-line px-5">
+      <div className="flex h-7 w-7 items-center justify-center bg-accent font-display text-sm text-accent-fg">
         P
       </div>
-      <div className="leading-tight">
-        <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">Pricing</p>
-        <p className="text-[11px] text-neutral-500 dark:text-neutral-400">Console</p>
+      <div className="leading-none">
+        <p className="font-display text-base uppercase tracking-tight text-white">PricingLab</p>
+        <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-500">
+          Console OS
+        </p>
       </div>
     </div>
   );
@@ -37,22 +39,24 @@ function SystemStatus() {
     return () => window.clearInterval(id);
   }, []);
   return (
-    <div className="border-t border-neutral-200 p-4 dark:border-neutral-800">
-      <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.12em] text-neutral-400">
+    <div className="border-t border-line p-4">
+      <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.12em] text-neutral-500">
         <span className="flex items-center gap-2">
-          <span className="pl-live inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          <span className="pl-live inline-block h-1.5 w-1.5 rounded-full bg-accent" />
           System online
         </span>
-        <span className="tabular-nums">{time} UTC</span>
+        <span className="tabular-nums text-neutral-400">{time} UTC</span>
       </div>
-      <p className="mt-1.5 text-[10.5px] text-neutral-400">Deterministic · read-only</p>
+      <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-neutral-600">
+        Deterministic · read-only
+      </p>
     </div>
   );
 }
 
 export function Sidebar() {
   return (
-    <aside className="hidden w-60 shrink-0 flex-col border-r border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900 lg:flex">
+    <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-ink-0 lg:flex">
       <Brand />
       <NavList idPrefix="sidebar" />
       <SystemStatus />
@@ -70,7 +74,7 @@ export function MobileNav({ open, onClose }: { open: boolean; onClose: () => voi
           <motion.button
             type="button"
             aria-label="Close menu"
-            className="absolute inset-0 bg-neutral-900/40 backdrop-blur-[1px]"
+            className="absolute inset-0 bg-black/60 backdrop-blur-[1px]"
             onClick={onClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -78,7 +82,7 @@ export function MobileNav({ open, onClose }: { open: boolean; onClose: () => voi
             transition={{ duration: DUR.fast }}
           />
           <motion.div
-            className="absolute left-0 top-0 flex h-full w-64 flex-col border-r border-neutral-200 bg-white shadow-xl dark:border-neutral-800 dark:bg-neutral-900"
+            className="absolute left-0 top-0 flex h-full w-64 flex-col border-r border-line bg-ink-0"
             initial={{ x: "-100%" }}
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}

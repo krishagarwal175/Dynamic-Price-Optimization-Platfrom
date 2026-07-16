@@ -1,0 +1,14 @@
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.egg-info
+dpop_backend.egg-info
+var
+tests
+*.db
+.env
+.env.*

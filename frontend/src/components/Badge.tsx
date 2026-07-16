@@ -5,20 +5,18 @@ import { cn } from "@/lib/cn";
 type Tone = "neutral" | "positive" | "negative" | "accent" | "warning";
 
 const TONES: Record<Tone, string> = {
-  neutral:
-    "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300",
-  positive:
-    "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-  negative: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
-  accent: "bg-accent-muted text-accent dark:bg-indigo-950 dark:text-indigo-300",
-  warning: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  neutral: "border-line bg-ink-3 text-neutral-400",
+  positive: "border-accent-soft bg-accent-muted text-accent",
+  negative: "border-signal/40 bg-signal-muted text-signal",
+  accent: "border-accent-soft bg-accent-muted text-accent",
+  warning: "border-amber-500/40 bg-amber-500/10 text-amber-400",
 };
 
 export function Badge({ tone = "neutral", children }: { tone?: Tone; children: ReactNode }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
+        "inline-flex items-center border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider",
         TONES[tone],
       )}
     >

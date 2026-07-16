@@ -17,9 +17,8 @@ import {
   YAxis,
 } from "recharts";
 
-import { useUiStore } from "@/services/store";
-
-export const CHART_COLORS = ["#4f46e5", "#059669", "#d97706", "#6b7280", "#db2777"];
+// Tactical series palette: neon green leads, signal red for contrast, muted supports.
+export const CHART_COLORS = ["#c8ff00", "#ff3b30", "#f5a623", "#8f8f8f", "#38bdf8"];
 
 const DRAW_MS = 700;
 
@@ -43,34 +42,22 @@ interface ChartTheme {
   };
 }
 
-const LIGHT: ChartTheme = {
-  axis: { fontSize: 11, fill: "#9ca3af" },
-  grid: "#e5e7eb",
-  surface: "#ffffff",
+// Single committed dark theme (matches the ink surfaces + hairline borders).
+const THEME: ChartTheme = {
+  axis: { fontSize: 11, fill: "#8f8f8f" },
+  grid: "#262626",
+  surface: "#080808", // ink-1, matches the card surface (forecast band mask)
   tooltip: {
     fontSize: 12,
-    borderRadius: 8,
-    border: "1px solid #e5e7eb",
-    background: "#ffffff",
-    color: "#111827",
-  },
-};
-
-const DARK: ChartTheme = {
-  axis: { fontSize: 11, fill: "#9ca3af" },
-  grid: "#374151",
-  surface: "#171717", // neutral-900, matches the dark card surface
-  tooltip: {
-    fontSize: 12,
-    borderRadius: 8,
-    border: "1px solid #374151",
-    background: "#171717",
+    borderRadius: 0,
+    border: "1px solid #2e2e2e",
+    background: "#101010",
     color: "#f5f5f5",
   },
 };
 
 function useChartTheme(): ChartTheme {
-  return useUiStore((s) => s.theme) === "dark" ? DARK : LIGHT;
+  return THEME;
 }
 
 export function LineSeriesChart<T extends object>({

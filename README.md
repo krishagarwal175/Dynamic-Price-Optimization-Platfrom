@@ -64,18 +64,26 @@ separately (Render / Railway / Fly / a VM). The two connect via one environment 
 
    CLI alternative: `cd frontend && npx vercel --prod` (prompts for login the first time).
 
-**Backend → any host**
+**Backend → Render (Docker + Postgres)**
 
-Run the published container/app and set its config:
+A one-click blueprint lives at [`render.yaml`](render.yaml) ([`backend/Dockerfile`](backend/Dockerfile)):
 
-- `DATABASE_URL` — a PostgreSQL URL (SQLite is dev-only).
-- `APP_ENV=production` — disables interactive docs.
-- `CORS_ALLOWED_ORIGINS` — must include the Vercel origin, e.g.
-  `https://your-app.vercel.app` (comma-separated; a `*` wildcard is rejected while
-  credentials are enabled).
+1. In Render → **New → Blueprint** → pick this repo. It provisions a free PostgreSQL
+   database and the API web service, and wires `DATABASE_URL` automatically.
+2. On first boot the container runs `alembic upgrade head` and an **idempotent demo seed**
+   ([`backend/scripts/seed.py`](backend/scripts/seed.py)) — the dashboards come up populated.
+3. Set **`CORS_ALLOWED_ORIGINS`** to your Vercel origin (e.g. `https://your-app.vercel.app`)
+   and redeploy. `APP_ENV=production` (disables docs) and `FILE_STORAGE_PATH=/tmp/storage`
+   are set by the blueprint.
+4. Copy the service URL (e.g. `https://pricinglab-api.onrender.com`) into Vercel's
+   `VITE_API_BASE_URL` and redeploy the frontend — the console is now live end-to-end.
+
+Any Docker/Postgres host works the same way; the only required config is `DATABASE_URL`,
+`APP_ENV=production`, and `CORS_ALLOWED_ORIGINS`.
 
 **Local development is unaffected:** with `VITE_API_BASE_URL` empty, the client uses
-`/api/v1` and the Vite dev server proxies it to `http://127.0.0.1:8000`.
+`/api/v1` and the Vite dev server proxies it to `http://127.0.0.1:8000`; the backend still
+defaults to SQLite.
 
 ---
 

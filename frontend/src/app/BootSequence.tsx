@@ -63,41 +63,33 @@ export function BootSequence({ onDone }: { onDone: () => void }) {
       role="status"
       aria-label="Initializing PricingLab"
       onClick={finish}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-neutral-50 dark:bg-neutral-950"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-ink-0"
       initial={{ opacity: 1 }}
       exit={{ opacity: 0, filter: "blur(6px)" }}
       transition={{ duration: DUR.base, ease: EASE }}
     >
       <div className="w-full max-w-sm px-8">
         <div className="flex items-center gap-3">
-          <span className="grid h-8 w-8 place-items-center rounded-md bg-accent text-sm font-bold text-accent-fg">
+          <span className="grid h-8 w-8 place-items-center bg-accent font-display text-base text-accent-fg">
             P
           </span>
-          <div className="leading-tight">
-            <p className="text-sm font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-              PricingLab
-            </p>
-            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-              Revenue Intelligence
+          <div className="leading-none">
+            <p className="font-display text-lg uppercase tracking-tight text-white">PricingLab</p>
+            <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              Revenue Intelligence OS
             </p>
           </div>
         </div>
 
         <div className="mt-8 flex items-baseline justify-between">
-          <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-neutral-400">
+          <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-neutral-500">
             Initializing
           </span>
-          <span className="font-mono text-xs tabular-nums text-neutral-500 dark:text-neutral-400">
-            {Math.round(pct)}%
-          </span>
+          <span className="font-display text-lg tabular-nums text-accent">{Math.round(pct)}%</span>
         </div>
 
-        <div className="mt-2 h-px w-full overflow-hidden bg-neutral-200 dark:bg-neutral-800">
-          <motion.div
-            className="h-full bg-accent"
-            style={{ width: `${pct}%` }}
-            aria-hidden="true"
-          />
+        <div className="mt-2 h-px w-full overflow-hidden bg-ink-3">
+          <motion.div className="h-full bg-accent" style={{ width: `${pct}%` }} aria-hidden="true" />
         </div>
 
         <ul className="mt-6 space-y-1.5">
@@ -108,22 +100,16 @@ export function BootSequence({ onDone }: { onDone: () => void }) {
                 key={step}
                 className="flex items-center justify-between font-mono text-[11px] tracking-wide"
               >
-                <span
-                  className={
-                    state === "wait"
-                      ? "text-neutral-300 dark:text-neutral-600"
-                      : "text-neutral-600 dark:text-neutral-300"
-                  }
-                >
+                <span className={state === "wait" ? "text-neutral-600" : "text-neutral-300"}>
                   {step}
                 </span>
                 <span
                   className={
                     state === "done"
-                      ? "text-emerald-600 dark:text-emerald-400"
+                      ? "text-accent"
                       : state === "run"
                         ? "text-accent"
-                        : "text-neutral-300 dark:text-neutral-700"
+                        : "text-neutral-700"
                   }
                 >
                   {state === "done" ? "OK" : state === "run" ? "···" : "—"}

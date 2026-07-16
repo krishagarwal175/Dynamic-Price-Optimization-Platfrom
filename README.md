@@ -52,61 +52,38 @@ make check        # everything above, the full local gate
 The frontend is a static SPA (Vercel); the FastAPI backend is hosted separately. The two
 connect via one environment variable (`VITE_API_BASE_URL`).
 
-### Free, no credit card — both tiers on Vercel
+### Recommended free stack (no credit card): Supabase + Render + Vercel
 
-Render / Railway / Fly / Koyeb / Hugging Face now gate free compute behind a card or a quota.
-The reliable free path runs **both** the frontend and the backend on Vercel (Hobby tier is
-free, no card): the backend is a Python **serverless function** ([`backend/api/index.py`](backend/api/index.py))
-serving the read-only API from a pre-seeded SQLite bundled in the deploy — no database
-service, no card. Create **two Vercel projects** from the same repo:
+Persistent Postgres data, and none of the three asks for a card. Render's *card wall only
+appears for a Render-managed database* — a plain **Web Service** is free with no card, so we
+use Supabase for the database instead.
 
-**Backend project** (Root Directory = `backend`):
-1. Vercel → Add New → Project → import the repo → set **Root Directory = `backend`**.
-2. Vercel detects the Python function via [`backend/vercel.json`](backend/vercel.json)
-   (routes all requests to `api/index.py`). Uploads are disabled here, so pandas isn't
-   bundled and the function stays small; the demo data is already inside `api/seed.sqlite`.
-3. Add env var **`CORS_ALLOWED_ORIGINS`** = your frontend URL (from the next project).
-4. Deploy → your API is at `https://<backend-project>.vercel.app` (health at `/api/v1/health`).
+**1. Database → Supabase** (free, no card)
+- supabase.com → New project. Then **Connect** → copy the **Session pooler** URI
+  (`postgresql://…@…pooler.supabase.com:5432/postgres`). This is the `DATABASE_URL`.
 
-**Frontend project** (Root Directory = `frontend`):
-1. Vercel → Add New → Project → import the repo → set **Root Directory = `frontend`**.
-2. Add env var **`VITE_API_BASE_URL`** = the backend URL from above.
-3. Deploy. Then paste this frontend URL back into the backend project's
-   `CORS_ALLOWED_ORIGINS` and redeploy the backend.
+**2. Backend → Render Web Service** (free, no card)
+- render.com → **New → Web Service** → connect the repo. Runtime **Docker**,
+  Dockerfile path **`backend/Dockerfile`**, context **`backend`**. Instance **Free**.
+- Environment: `APP_ENV=production`, `DATABASE_URL=<Supabase URI>`, `FILE_STORAGE_PATH=/tmp/storage`,
+  and `CORS_ALLOWED_ORIGINS=<your Vercel URL>` (add after step 3).
+- On boot it runs migrations + the [idempotent seed](backend/scripts/seed.py) against Supabase,
+  so the dashboards come up populated (and stay populated). URL: `https://<name>.onrender.com`.
+  (There is also a [`render.yaml`](render.yaml) blueprint that expects an external `DATABASE_URL`.)
 
-> The serverless backend's SQLite is read-only demo data (regenerated per cold start); great
-> for a showcase. For persistent/writable data or dataset uploads, use the container path below.
+**3. Frontend → Vercel** (free, no card)
+- vercel.com → Add New → Project → import the repo → **Root Directory `frontend`**.
+- Env var `VITE_API_BASE_URL` = your Render URL. Deploy. Then put the Vercel URL into the
+  Render service's `CORS_ALLOWED_ORIGINS` and redeploy the backend.
 
-### Container / managed (Render blueprint — requires a card on file)
+### Alternative: everything on Vercel (no database, no card)
 
-**Frontend → Vercel**
-
-1. Import the GitHub repo in Vercel and set **Root Directory = `frontend`** (build config
-   lives in [`frontend/vercel.json`](frontend/vercel.json): framework `vite`, output `dist`,
-   SPA rewrite so deep links resolve).
-2. Add an environment variable **`VITE_API_BASE_URL`** = your backend origin, e.g.
-   `https://api.your-host.com` (the client appends `/api/v1`). See
-   [`frontend/.env.example`](frontend/.env.example).
-3. Deploy. Every push to `main` redeploys automatically.
-
-   CLI alternative: `cd frontend && npx vercel --prod` (prompts for login the first time).
-
-**Backend → Render (Docker + Postgres)**
-
-A one-click blueprint lives at [`render.yaml`](render.yaml) ([`backend/Dockerfile`](backend/Dockerfile)):
-
-1. In Render → **New → Blueprint** → pick this repo. It provisions a free PostgreSQL
-   database and the API web service, and wires `DATABASE_URL` automatically.
-2. On first boot the container runs `alembic upgrade head` and an **idempotent demo seed**
-   ([`backend/scripts/seed.py`](backend/scripts/seed.py)) — the dashboards come up populated.
-3. Set **`CORS_ALLOWED_ORIGINS`** to your Vercel origin (e.g. `https://your-app.vercel.app`)
-   and redeploy. `APP_ENV=production` (disables docs) and `FILE_STORAGE_PATH=/tmp/storage`
-   are set by the blueprint.
-4. Copy the service URL (e.g. `https://pricinglab-api.onrender.com`) into Vercel's
-   `VITE_API_BASE_URL` and redeploy the frontend — the console is now live end-to-end.
-
-Any Docker/Postgres host works the same way; the only required config is `DATABASE_URL`,
-`APP_ENV=production`, and `CORS_ALLOWED_ORIGINS`.
+For a zero-database showcase, the backend also runs as a **Vercel Python serverless function**
+([`backend/api/index.py`](backend/api/index.py), [`backend/vercel.json`](backend/vercel.json))
+that serves the read-only API from a pre-seeded SQLite ([`backend/api/seed.sqlite`](backend/api/seed.sqlite)).
+Create a second Vercel project with **Root Directory `backend`**, set the frontend's
+`VITE_API_BASE_URL` to it, and set its `CORS_ALLOWED_ORIGINS` to the frontend URL. Uploads
+are disabled in this mode (so pandas isn't bundled); demo data regenerates per cold start.
 
 **Local development is unaffected:** with `VITE_API_BASE_URL` empty, the client uses
 `/api/v1` and the Vite dev server proxies it to `http://127.0.0.1:8000`; the backend still

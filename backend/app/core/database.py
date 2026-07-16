@@ -63,9 +63,17 @@ def _enable_sqlite_foreign_keys(engine: Engine) -> None:
         cursor.close()
 
 
+def _normalize_url(url: str) -> str:
+    """Accept the legacy ``postgres://`` scheme some providers (Supabase, Heroku) emit and
+    rewrite it to the ``postgresql://`` form SQLAlchemy 2.0 requires."""
+    if url.startswith("postgres://"):
+        return "postgresql://" + url[len("postgres://") :]
+    return url
+
+
 def create_db_engine(settings: Settings) -> Engine:
     """Create a SQLAlchemy engine from settings, applying provider-specific tuning."""
-    url = settings.database_url
+    url = _normalize_url(settings.database_url)
     if _is_sqlite(url):
         if not _is_sqlite_memory(url):
             _ensure_sqlite_parent_dir(url)

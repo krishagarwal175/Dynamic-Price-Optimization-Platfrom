@@ -1,8 +1,10 @@
-# Render Blueprint — PricingLab API (FastAPI) + managed PostgreSQL.
+# Render Blueprint — PricingLab API (FastAPI) on an EXTERNAL PostgreSQL (e.g. Supabase).
+# No Render-managed database is declared, so no credit card is required. You can also just
+# use "New → Web Service" in the Render dashboard instead of this Blueprint.
 #
-# Deploy: push to GitHub, then in Render → New → Blueprint → pick this repo. Render reads
-# this file, provisions the database and the web service, and wires DATABASE_URL. After the
-# first deploy, set CORS_ALLOWED_ORIGINS to your Vercel URL (below), then redeploy.
+# After the first deploy, set the two `sync: false` variables in the Render dashboard:
+#   DATABASE_URL          — your Supabase connection string (Session pooler, postgresql://…)
+#   CORS_ALLOWED_ORIGINS  — your frontend origin, e.g. https://your-app.vercel.app
 services:
   - type: web
     name: pricinglab-api
@@ -15,18 +17,9 @@ services:
     envVars:
       - key: APP_ENV
         value: production
-      - key: DATABASE_URL
-        fromDatabase:
-          name: pricinglab-db
-          property: connectionString
       - key: FILE_STORAGE_PATH
         value: /tmp/storage
-      # Set this to your deployed frontend origin (comma-separated for several).
-      # A "*" wildcard is rejected because credentialed CORS is enabled.
+      - key: DATABASE_URL
+        sync: false
       - key: CORS_ALLOWED_ORIGINS
         sync: false
-
-databases:
-  - name: pricinglab-db
-    plan: free
-    databaseName: pricinglab

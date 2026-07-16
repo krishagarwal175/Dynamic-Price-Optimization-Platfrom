@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     database_url: str = Field(default="sqlite:///./var/dpop.db")
     db_echo: bool = Field(default=False)
 
+    # Dataset ingestion (upload endpoints). Disabled in read-only deployments (e.g. the
+    # serverless build) so the heavy pandas/openpyxl dependencies are never imported.
+    enable_uploads: bool = Field(default=True)
+
     # File storage & upload limits (dataset ingestion).
     file_storage_path: str = Field(default="./var/storage")
     max_upload_bytes: int = Field(default=10 * 1024 * 1024)  # 10 MiB

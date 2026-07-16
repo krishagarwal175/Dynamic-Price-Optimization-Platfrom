@@ -1,0 +1,16 @@
+.venv
+venv
+tests
+var
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.egg-info
+# Not needed at runtime (the DB is pre-seeded in api/seed.sqlite):
+alembic
+scripts
+Dockerfile
+.dockerignore
+*.db

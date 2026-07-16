@@ -52,28 +52,32 @@ make check        # everything above, the full local gate
 The frontend is a static SPA (Vercel); the FastAPI backend is hosted separately. The two
 connect via one environment variable (`VITE_API_BASE_URL`).
 
-### Free tier, no credit card
+### Free, no credit card — both tiers on Vercel
 
-Render / Railway / Fly now require a card even for free instances. For a **truly free,
-no-card** deployment, host the backend on **Hugging Face Spaces (Docker)** — the console is
-read-only and the backend seeds itself on boot, so SQLite in the container is enough (no
-paid database needed; data regenerates on restart).
+Render / Railway / Fly / Koyeb / Hugging Face now gate free compute behind a card or a quota.
+The reliable free path runs **both** the frontend and the backend on Vercel (Hobby tier is
+free, no card): the backend is a Python **serverless function** ([`backend/api/index.py`](backend/api/index.py))
+serving the read-only API from a pre-seeded SQLite bundled in the deploy — no database
+service, no card. Create **two Vercel projects** from the same repo:
 
-**Backend → Hugging Face Space** ([`deploy/huggingface/`](deploy/huggingface/)):
-1. huggingface.co → sign up (free, no card) → **New → Space** → SDK **Docker** (blank).
-2. Add the two files from [`deploy/huggingface/`](deploy/huggingface/) to the Space
-   (`Dockerfile` + `README.md`) — they clone the backend from GitHub and run it on SQLite
-   with the demo seed. The Space builds and starts automatically.
-3. Space **Settings → Variables and secrets** → add `CORS_ALLOWED_ORIGINS` = your Vercel URL.
-4. Your API URL is `https://<user>-<space>.hf.space` (health at `/api/v1/health`).
+**Backend project** (Root Directory = `backend`):
+1. Vercel → Add New → Project → import the repo → set **Root Directory = `backend`**.
+2. Vercel detects the Python function via [`backend/vercel.json`](backend/vercel.json)
+   (routes all requests to `api/index.py`). Uploads are disabled here, so pandas isn't
+   bundled and the function stays small; the demo data is already inside `api/seed.sqlite`.
+3. Add env var **`CORS_ALLOWED_ORIGINS`** = your frontend URL (from the next project).
+4. Deploy → your API is at `https://<backend-project>.vercel.app` (health at `/api/v1/health`).
 
-**Frontend → Vercel** (Hobby tier is free, no card): import the repo, Root Directory
-`frontend`, set `VITE_API_BASE_URL` to the Space URL, deploy.
+**Frontend project** (Root Directory = `frontend`):
+1. Vercel → Add New → Project → import the repo → set **Root Directory = `frontend`**.
+2. Add env var **`VITE_API_BASE_URL`** = the backend URL from above.
+3. Deploy. Then paste this frontend URL back into the backend project's
+   `CORS_ALLOWED_ORIGINS` and redeploy the backend.
 
-> Note: a free Space sleeps after ~48h idle and cold-starts in ~30s (the boot animation
-> masks it); SQLite data resets if the Space restarts — fine for a showcase.
+> The serverless backend's SQLite is read-only demo data (regenerated per cold start); great
+> for a showcase. For persistent/writable data or dataset uploads, use the container path below.
 
-### Managed (Render blueprint, requires a card on file)
+### Container / managed (Render blueprint — requires a card on file)
 
 **Frontend → Vercel**
 

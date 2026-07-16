@@ -1,0 +1,7 @@
+# Runtime dependencies for the Vercel serverless build (read-only API, no uploads).
+# The pandas/openpyxl ingestion stack and psycopg are intentionally omitted so the
+# function stays small. Local dev/tests use pyproject.toml (pip install -e ".[dev]").
+fastapi>=0.111
+pydantic>=2.7
+pydantic-settings>=2.3
+sqlalchemy>=2.0

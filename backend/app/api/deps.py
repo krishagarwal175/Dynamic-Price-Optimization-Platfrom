@@ -17,7 +17,6 @@ from app.core.database import session_scope
 from app.services.analytics import AnalyticsService
 from app.services.catalog import CatalogService
 from app.services.health import HealthService
-from app.services.ingestion import IngestionService
 from app.storage.base import FileStorage
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
@@ -53,16 +52,9 @@ HealthServiceDep = Annotated[HealthService, Depends(get_health_service)]
 
 FileStorageDep = Annotated[FileStorage, Depends(get_file_storage)]
 
-
-def get_ingestion_service(
-    session: DbSessionDep,
-    storage: FileStorageDep,
-    settings: SettingsDep,
-) -> IngestionService:
-    return IngestionService(session, storage, settings)
-
-
-IngestionServiceDep = Annotated[IngestionService, Depends(get_ingestion_service)]
+# NOTE: the ingestion service provider lives in ``app.api.routes.datasets`` (not here) so
+# that importing ``deps`` never pulls in the pandas-backed ingestion stack. The read-only
+# serverless build omits the datasets router entirely.
 
 
 def get_analytics_service(session: DbSessionDep) -> AnalyticsService:

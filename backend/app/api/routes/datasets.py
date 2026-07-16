@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 
-from app.api.deps import IngestionServiceDep, SettingsDep
+from app.api.deps import DbSessionDep, FileStorageDep, SettingsDep
 from app.core.errors import PayloadTooLargeError
 from app.models.dataset import DatasetKind
 from app.schemas.dataset import (
@@ -17,9 +17,22 @@ from app.schemas.dataset import (
     ValidationReportSchema,
 )
 from app.schemas.envelope import SuccessResponse
-from app.services.ingestion import PreviewResult
+from app.services.ingestion import IngestionService, PreviewResult
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
+
+
+# The ingestion service is wired here (not in app.api.deps) so the pandas-backed ingestion
+# stack is imported only when the upload router is mounted (enable_uploads).
+def get_ingestion_service(
+    session: DbSessionDep,
+    storage: FileStorageDep,
+    settings: SettingsDep,
+) -> IngestionService:
+    return IngestionService(session, storage, settings)
+
+
+IngestionServiceDep = Annotated[IngestionService, Depends(get_ingestion_service)]
 
 
 @router.post(

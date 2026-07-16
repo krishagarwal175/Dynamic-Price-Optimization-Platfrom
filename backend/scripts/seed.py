@@ -60,17 +60,16 @@ def main() -> None:
             print(f"Seed skipped: {existing} product(s) already present.")
             return
 
+        # Write in bulk (a handful of round-trips) so the seed stays fast even over a
+        # high-latency database connection: categories → flush, products → flush, sales → commit.
         categories: dict[str, Category] = {}
         for _sku, _name, category_name, *_rest in _CATALOG:
-            if category_name not in categories:
-                category = Category(name=category_name)
-                session.add(category)
-                categories[category_name] = category
+            categories.setdefault(category_name, Category(name=category_name))
+        session.add_all(list(categories.values()))
         session.flush()
 
-        anchor = date.today().replace(day=1)
+        products: list[tuple[Product, float, int, float]] = []
         for sku, name, category_name, unit_cost, base_price, elasticity, ref_demand in _CATALOG:
-            base = float(base_price)
             product = Product(
                 category_id=categories[category_name].id,
                 sku=sku,
@@ -79,16 +78,20 @@ def main() -> None:
                 base_price=Decimal(base_price),
                 currency="USD",
             )
-            session.add(product)
-            session.flush()
+            products.append((product, elasticity, ref_demand, float(base_price)))
+        session.add_all([product for product, _e, _rd, _base in products])
+        session.flush()  # assign product ids
 
+        anchor = date.today().replace(day=1)
+        sales: list[HistoricalSale] = []
+        for product, elasticity, ref_demand, base in products:
             for i in range(_MONTHS):
-                factor = _PRICE_FACTORS[(i + hash(sku)) % len(_PRICE_FACTORS)]
+                factor = _PRICE_FACTORS[(i + hash(product.sku)) % len(_PRICE_FACTORS)]
                 price = _money(base * factor)
                 ratio = float(price) / base
                 seasonal = 1.0 + 0.08 * math.sin(i / 2.0)
                 demand = ref_demand * (ratio**elasticity) * seasonal * rng.uniform(0.9, 1.1)
-                session.add(
+                sales.append(
                     HistoricalSale(
                         product_id=product.id,
                         sale_date=_month_start(anchor, _MONTHS - 1 - i),
@@ -96,7 +99,7 @@ def main() -> None:
                         unit_price=price,
                     )
                 )
-
+        session.add_all(sales)
         session.commit()
         products = session.scalar(select(func.count()).select_from(Product)) or 0
         sales = session.scalar(select(func.count()).select_from(HistoricalSale)) or 0
